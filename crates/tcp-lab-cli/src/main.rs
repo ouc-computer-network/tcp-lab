@@ -106,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
         java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
     } else if let Some(path) = &args.cpp_sender_lib {
         info!("Loading C++ Sender from {:?}", path);
-        cpp::loader::load_cpp_sender(path)?
+        cpp::loader::load_protocol(path)?
     } else if let Some(py_arg) = &args.python_sender {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Sender: {}.{}", module, class);
@@ -123,7 +123,7 @@ async fn main() -> anyhow::Result<()> {
         java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
     } else if let Some(path) = &args.cpp_receiver_lib {
         info!("Loading C++ Receiver from {:?}", path);
-        cpp::loader::load_cpp_sender(path)?
+        cpp::loader::load_protocol(path)?
     } else if let Some(py_arg) = &args.python_receiver {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Receiver: {}.{}", module, class);

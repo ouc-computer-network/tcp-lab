@@ -3,30 +3,29 @@ use std::path::Path;
 
 use anyhow::Context;
 use libloading::{Library, Symbol};
-use tcp_lab_core::{Packet, TransportProtocol, SystemContext};
+use tcp_lab_core::{Packet, SystemContext, TransportProtocol};
 use tcp_lab_ffi::with_context;
 
 /// C function types exported by a C++ protocol library.
 ///
-/// The expected C++ signatures (for a sender library) are roughly:
+/// The expected C++ signatures are:
 /// ```cpp
-/// extern "C" TransportProtocol* create_sender();
-/// extern "C" void destroy_sender(TransportProtocol*);
-/// extern "C" void sender_init(TransportProtocol*);
-/// extern "C" void sender_on_app_data(TransportProtocol*, const uint8_t* data, size_t len);
-/// extern "C" void sender_on_packet(TransportProtocol*,
+/// extern "C" TransportProtocol* create_protocol();
+/// extern "C" void destroy_protocol(TransportProtocol*);
+/// extern "C" void protocol_init(TransportProtocol*);
+/// extern "C" void protocol_on_app_data(TransportProtocol*, const uint8_t* data, size_t len);
+/// extern "C" void protocol_on_packet(TransportProtocol*,
 ///                                  uint32_t seq, uint32_t ack, uint8_t flags,
 ///                                  uint16_t window, uint16_t checksum,
 ///                                  const uint8_t* payload, size_t len);
-/// extern "C" void sender_on_timer(TransportProtocol*, int timerId);
+/// extern "C" void protocol_on_timer(TransportProtocol*, int timerId);
 /// ```
 
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
 type DestroyFn = unsafe extern "C" fn(*mut c_void);
 type InitFn = unsafe extern "C" fn(*mut c_void);
 type OnAppDataFn = unsafe extern "C" fn(*mut c_void, *const u8, usize);
-type OnPacketFn =
-    unsafe extern "C" fn(*mut c_void, u32, u32, u8, u16, u16, *const u8, usize);
+type OnPacketFn = unsafe extern "C" fn(*mut c_void, u32, u32, u8, u16, u16, *const u8, usize);
 type OnTimerFn = unsafe extern "C" fn(*mut c_void, i32);
 
 pub struct CppTransportProtocol {
@@ -45,20 +44,24 @@ unsafe impl Sync for CppTransportProtocol {}
 impl CppTransportProtocol {
     fn new(lib: Library) -> anyhow::Result<Self> {
         unsafe {
-            // Load symbols first, keeping the library borrowed only within this scope.
-            let create: Symbol<CreateFn> =
-                lib.get(b"create_sender\0").context("missing create_sender")?;
-            let destroy_sym: Symbol<DestroyFn> =
-                lib.get(b"destroy_sender\0").context("missing destroy_sender")?;
-            let init_sym: Symbol<InitFn> =
-                lib.get(b"sender_init\0").context("missing sender_init")?;
-            let on_app_data_sym: Symbol<OnAppDataFn> =
-                lib.get(b"sender_on_app_data\0")
-                    .context("missing sender_on_app_data")?;
-            let on_packet_sym: Symbol<OnPacketFn> =
-                lib.get(b"sender_on_packet\0").context("missing sender_on_packet")?;
-            let on_timer_sym: Symbol<OnTimerFn> =
-                lib.get(b"sender_on_timer\0").context("missing sender_on_timer")?;
+            let create: Symbol<CreateFn> = lib
+                .get(b"create_protocol\0")
+                .context("missing create_protocol")?;
+            let destroy_sym: Symbol<DestroyFn> = lib
+                .get(b"destroy_protocol\0")
+                .context("missing destroy_protocol")?;
+            let init_sym: Symbol<InitFn> = lib
+                .get(b"protocol_init\0")
+                .context("missing protocol_init")?;
+            let on_app_data_sym: Symbol<OnAppDataFn> = lib
+                .get(b"protocol_on_app_data\0")
+                .context("missing protocol_on_app_data")?;
+            let on_packet_sym: Symbol<OnPacketFn> = lib
+                .get(b"protocol_on_packet\0")
+                .context("missing protocol_on_packet")?;
+            let on_timer_sym: Symbol<OnTimerFn> = lib
+                .get(b"protocol_on_timer\0")
+                .context("missing protocol_on_timer")?;
 
             let destroy = *destroy_sym;
             let init_fn = *init_sym;
@@ -68,7 +71,7 @@ impl CppTransportProtocol {
 
             let instance = create();
             if instance.is_null() {
-                anyhow::bail!("create_sender returned null");
+                anyhow::bail!("create_protocol returned null");
             }
 
             Ok(Self {
@@ -137,12 +140,10 @@ impl TransportProtocol for CppTransportProtocol {
     }
 }
 
-/// Load a C++ sender library from the given path and wrap it as a Rust TransportProtocol.
-pub fn load_cpp_sender<P: AsRef<Path>>(path: P) -> anyhow::Result<Box<dyn TransportProtocol>> {
+/// Load a C++ protocol library from the given path and wrap it as a Rust TransportProtocol.
+pub fn load_protocol<P: AsRef<Path>>(path: P) -> anyhow::Result<Box<dyn TransportProtocol>> {
     let lib = unsafe { Library::new(path.as_ref()) }
-        .with_context(|| format!("failed to load C++ sender library {:?}", path.as_ref()))?;
+        .with_context(|| format!("failed to load C++ protocol library {:?}", path.as_ref()))?;
     let cpp = CppTransportProtocol::new(lib)?;
     Ok(Box::new(cpp))
 }
-
-

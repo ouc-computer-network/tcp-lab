@@ -1,0 +1,31 @@
+name = "RDT 2.1 ACK-only"
+description = "验证在无 NAK 情况下，RDT2.1 能靠重复 ACK 重传"
+
+[config]
+loss_rate = 0.0
+corrupt_rate = 0.2
+min_latency = 10
+max_latency = 60
+seed = 2718
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "RDT21 0"
+
+[[actions]]
+type = "app_send"
+time = 400
+data = "RDT21 1"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT21 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT21 1"
+
+[[assertions]]
+type = "max_duration"
+ms = 22000

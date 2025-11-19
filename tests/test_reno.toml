@@ -1,0 +1,95 @@
+name = "TCP Reno Congestion Control Test"
+description = "Tests Slow Start, Congestion Avoidance and Fast Retransmit"
+
+[config]
+# 使用理想信道 + 精确丢包脚本来测试 Reno 的 Fast Retransmit / Fast Recovery
+loss_rate = 0.0
+corrupt_rate = 0.0
+min_latency = 50
+max_latency = 50
+seed = 12345
+
+# Burst send to fill the window and trigger congestion control
+[[actions]]
+type = "app_send"
+time = 100
+data = "Seg 0"
+
+[[actions]]
+type = "app_send"
+time = 150
+data = "Seg 1"
+
+[[actions]]
+type = "app_send"
+time = 200
+data = "Seg 2"
+
+[[actions]]
+type = "app_send"
+time = 250
+data = "Seg 3"
+
+[[actions]]
+type = "app_send"
+time = 300
+data = "Seg 4"
+
+[[actions]]
+type = "app_send"
+time = 350
+data = "Seg 5"
+
+[[actions]]
+type = "app_send"
+time = 400
+data = "Seg 6"
+
+[[actions]]
+type = "app_send"
+time = 450
+data = "Seg 7"
+
+[[actions]]
+type = "app_send"
+time = 500
+data = "Seg 8"
+
+[[actions]]
+type = "app_send"
+time = 550
+data = "Seg 9"
+
+# 精确丢掉一次中间的分组，触发 3 个重复 ACK，Reno 应该通过 Fast Retransmit + Fast Recovery 快速恢复
+[[actions]]
+type = "drop_next_from_sender_seq"
+seq = 3
+
+# Assertions
+[[assertions]]
+type = "data_delivered"
+data = "Seg 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "Seg 5"
+
+[[assertions]]
+type = "data_delivered"
+data = "Seg 9"
+
+# Reno should be efficient, sending ~10 packets plus retransmits.
+# Max packets depends on loss, but shouldn't be excessive.
+[[assertions]]
+type = "sender_packet_count"
+min = 11      # 至少发生一次重传
+max = 40      # 不允许出现失控的重传风暴
+
+[[assertions]]
+type = "sender_window_max"
+min = 5       # Reno 在 Fast Recovery 中应达到 cwnd >= 5；Tahoe 在对应脚本下最大只到 4
+
+[[assertions]]
+type = "max_duration"
+ms = 10000
+

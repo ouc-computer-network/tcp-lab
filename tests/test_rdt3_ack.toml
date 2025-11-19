@@ -1,0 +1,43 @@
+name = "RDT 3.0 ACK Loss Test"
+description = "Verify RDT 3.0 can recover when ACKs are lost"
+
+[config]
+loss_rate = 0.0
+corrupt_rate = 0.0
+min_latency = 50
+max_latency = 50
+seed = 42420
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "ACK-LOSS 0"
+
+[[actions]]
+type = "app_send"
+time = 8000
+data = "ACK-LOSS 1"
+
+# 精确丢掉第一次从接收方发出的 ACK0，迫使发送方依靠超时重传恢复
+[[actions]]
+type = "drop_next_from_receiver_ack"
+ack = 0
+
+[[assertions]]
+type = "data_delivered"
+data = "ACK-LOSS 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "ACK-LOSS 1"
+
+[[assertions]]
+type = "sender_packet_count"
+min = 3      # 至少有一次超时重传
+max = 10     # 不允许出现无限重传风暴
+
+[[assertions]]
+type = "max_duration"
+ms = 30000
+
+

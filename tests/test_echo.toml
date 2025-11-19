@@ -1,0 +1,22 @@
+name = "Echo Test"
+description = "Tests if simple data transmission works under lossy conditions"
+
+[config]
+loss_rate = 0.0
+min_latency = 10
+max_latency = 50
+seed = 123
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "Hello"
+
+[[assertions]]
+type = "data_delivered"
+data = "Hello"
+
+[[assertions]]
+type = "max_duration"
+ms = 2000
+

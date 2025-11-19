@@ -1,0 +1,36 @@
+name = "RDT 2.2 ACK-Only with Duplicate ACKs"
+description = "验证 RDT 2.2 在只有 ACK 的通道中恢复丢包"
+
+[config]
+loss_rate = 0.0
+corrupt_rate = 0.25
+min_latency = 5
+max_latency = 80
+seed = 14142
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "RDT22 0"
+
+[[actions]]
+type = "app_send"
+time = 500
+data = "RDT22 1"
+
+[[actions]]
+type = "app_send"
+time = 1000
+data = "RDT22 2"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT22 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT22 2"
+
+[[assertions]]
+type = "max_duration"
+ms = 24000

@@ -1,0 +1,98 @@
+name = "TCP Tahoe Congestion Control Test"
+description = "Tests Slow Start, Congestion Avoidance and Tahoe-style Fast Retransmit (no Fast Recovery)"
+
+[config]
+loss_rate = 0.0
+corrupt_rate = 0.0
+min_latency = 50
+max_latency = 50
+seed = 20240
+
+# 发送一串数据，足以让 cwnd 提升并触发拥塞控制
+[[actions]]
+type = "app_send"
+time = 100
+data = "Tahoe 0"
+
+[[actions]]
+type = "app_send"
+time = 150
+data = "Tahoe 1"
+
+[[actions]]
+type = "app_send"
+time = 200
+data = "Tahoe 2"
+
+[[actions]]
+type = "app_send"
+time = 250
+data = "Tahoe 3"
+
+[[actions]]
+type = "app_send"
+time = 300
+data = "Tahoe 4"
+
+[[actions]]
+type = "app_send"
+time = 350
+data = "Tahoe 5"
+
+[[actions]]
+type = "app_send"
+time = 400
+data = "Tahoe 6"
+
+[[actions]]
+type = "app_send"
+time = 450
+data = "Tahoe 7"
+
+[[actions]]
+type = "app_send"
+time = 500
+data = "Tahoe 8"
+
+[[actions]]
+type = "app_send"
+time = 550
+data = "Tahoe 9"
+
+# 精确丢掉一次中间的分组，触发 Fast Retransmit + cwnd 回到 1
+[[actions]]
+type = "drop_next_from_sender_seq"
+seq = 3
+
+[[assertions]]
+type = "data_delivered"
+data = "Tahoe 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "Tahoe 5"
+
+[[assertions]]
+type = "data_delivered"
+data = "Tahoe 9"
+
+[[assertions]]
+type = "sender_packet_count"
+min = 11     # 至少发生一次重传
+max = 40     # 允许一定数量的超时重传，但防止失控风暴
+
+[[assertions]]
+type = "sender_window_max"
+min = 4      # 至少涨到 4，体现慢开始
+max = 4      # 但不允许涨到 5（Reno Fast Recovery 的典型特征）
+
+[[assertions]]
+type = "sender_window_drop"
+from_at_least = 4   # 先至少涨到 4
+to_at_most = 1      # 之后在某个时刻跌回到 1（Tahoe 的特征）
+
+[[assertions]]
+type = "max_duration"
+ms = 12000
+
+

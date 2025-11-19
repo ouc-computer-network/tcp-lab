@@ -1,0 +1,40 @@
+name = "RDT 2.0 Checksum + NAK"
+description = "RDT 2.0 通过检查和 NAK 重传实现可靠传输"
+
+[config]
+loss_rate = 0.0
+corrupt_rate = 0.5
+min_latency = 5
+max_latency = 30
+seed = 31415
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "RDT20 A"
+
+[[actions]]
+type = "app_send"
+time = 500
+data = "RDT20 B"
+
+[[actions]]
+type = "app_send"
+time = 900
+data = "RDT20 C"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT20 A"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT20 B"
+
+[[assertions]]
+type = "data_delivered"
+data = "RDT20 C"
+
+[[assertions]]
+type = "max_duration"
+ms = 20000

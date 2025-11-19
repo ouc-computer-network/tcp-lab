@@ -1,0 +1,58 @@
+name = "Go-Back-N Window Reliability"
+description = "Ensure GBN handles cumulative ACKs and recovers from loss"
+
+[config]
+loss_rate = 0.0      # 理想信道，不用随机丢包
+corrupt_rate = 0.0   # 不用随机比特差错
+min_latency = 50
+max_latency = 50
+seed = 4242
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "GBN 0"
+
+[[actions]]
+type = "app_send"
+time = 400
+data = "GBN 1"
+
+[[actions]]
+type = "app_send"
+time = 700
+data = "GBN 2"
+
+[[actions]]
+type = "app_send"
+time = 1000
+data = "GBN 3"
+
+[[actions]]
+type = "drop_next_from_sender_seq"
+seq = 1
+
+[[assertions]]
+type = "data_delivered"
+data = "GBN 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "GBN 1"
+
+[[assertions]]
+type = "data_delivered"
+data = "GBN 2"
+
+[[assertions]]
+type = "data_delivered"
+data = "GBN 3"
+
+[[assertions]]
+type = "sender_packet_count"
+min = 7
+max = 7
+
+[[assertions]]
+type = "max_duration"
+ms = 15000

@@ -1,0 +1,43 @@
+name = "RDT 3.0 Robustness Test"
+description = "Tests if RDT 3.0 can recover from packet loss"
+
+[config]
+loss_rate = 0.2 # Reduced loss rate slightly to 20%
+min_latency = 10
+max_latency = 50
+seed = 999
+
+[[actions]]
+type = "app_send"
+time = 100
+data = "Packet 0"
+
+[[actions]]
+type = "app_send"
+time = 15000 # Increased significantly to allow multiple retransmissions (3s timeout * 4)
+data = "Packet 1"
+
+[[actions]]
+type = "app_send"
+time = 30000
+data = "Packet 2"
+
+[[assertions]]
+type = "data_delivered"
+data = "Packet 0"
+
+[[assertions]]
+type = "data_delivered"
+data = "Packet 1"
+
+[[assertions]]
+type = "data_delivered"
+data = "Packet 2"
+
+[[assertions]]
+type = "sender_packet_count"
+min = 3
+
+[[assertions]]
+type = "max_duration"
+ms = 45000

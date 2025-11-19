@@ -9,11 +9,12 @@ public class NativeBridge {
     // No System.loadLibrary needed.
 
     // Native methods corresponding to SystemContext
-    public static native void sendPacket(long seq, long ack, byte flags, int window, int checksum, byte[] payload);
+    public static native void sendPacket(long seq, long ack, byte flags, int window, int checksum, int urgent, byte[] payload);
     public static native void startTimer(long delayMs, int timerId);
     public static native void cancelTimer(int timerId);
     public static native void deliverData(byte[] data);
     public static native void log(String message);
     public static native long now();
+    public static native void recordMetric(String name, double value);
 }
 

@@ -37,5 +37,13 @@ public interface SystemContext {
      * Get current simulation time in ms.
      */
     long now();
+
+    /**
+     * Record a numeric metric for visualization / grading (e.g. cwnd, ssthresh).
+     * The simulator/TUI may aggregate and display these time series.
+     */
+    default void recordMetric(String name, double value) {
+        // Default no-op: students can call it safely even if host ignores it.
+    }
 }
 

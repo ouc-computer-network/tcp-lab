@@ -40,5 +40,8 @@ public class TcpHeader {
     
     public int getChecksum() { return checksum; }
     public void setChecksum(int checksum) { this.checksum = checksum; }
+
+    public int getUrgentPtr() { return urgentPtr; }
+    public void setUrgentPtr(int urgentPtr) { this.urgentPtr = urgentPtr; }
 }
 

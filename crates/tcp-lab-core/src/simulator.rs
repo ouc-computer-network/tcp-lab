@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use rand::Rng;
 use tracing::{debug, info};
 use crate::interface::{SystemContext, TransportProtocol};
@@ -93,6 +93,7 @@ struct ActionBuffer {
     timers_cancel: Vec<u32>,
     logs: Vec<String>,
     delivered_data: Vec<Vec<u8>>,
+    metrics: Vec<(String, f64)>,
 }
 
 impl Default for ActionBuffer {
@@ -103,6 +104,7 @@ impl Default for ActionBuffer {
             timers_cancel: Vec::new(),
             logs: Vec::new(),
             delivered_data: Vec::new(),
+            metrics: Vec::new(),
         }
     }
 }
@@ -137,6 +139,10 @@ impl<'a> SystemContext for ScopedContext<'a> {
     fn now(&self) -> u64 {
         self.now
     }
+
+    fn record_metric(&mut self, name: &str, value: f64) {
+        self.buffer.metrics.push((name.to_string(), value));
+    }
 }
 
 pub struct Simulator {
@@ -158,6 +164,10 @@ pub struct Simulator {
 
     // Optional: record sender-side window size (e.g., cwnd) reported in header.window_size
     pub sender_window_sizes: Vec<u16>,
+
+    /// Arbitrary time-series metrics recorded via `SystemContext::record_metric`
+    /// Key: metric name (e.g., "ssthresh"), Value: Vec<(time_ms, value)>
+    pub metrics: HashMap<String, Vec<(u64, f64)>>,
 
     // Deterministic fault injection: drop first packet from Sender with given seq numbers
     drop_sender_seq_once: Vec<u32>,
@@ -181,6 +191,7 @@ impl Simulator {
             delivered_data: Vec::new(),
             sender_packet_count: 0,
             sender_window_sizes: Vec::new(),
+            metrics: HashMap::new(),
             drop_sender_seq_once: Vec::new(),
             drop_receiver_ack_once: Vec::new(),
         }
@@ -194,6 +205,16 @@ impl Simulator {
     /// Register a deterministic fault: drop the first ACK sent by Receiver whose ack equals `ack`.
     pub fn add_drop_receiver_ack_once(&mut self, ack: u32) {
         self.drop_receiver_ack_once.push(ack);
+    }
+
+    /// Expose current simulation config (for TUI / diagnostics)
+    pub fn config(&self) -> &SimConfig {
+        &self.config
+    }
+
+    /// Return a slice of (time_ms, value) samples for a named metric, if present.
+    pub fn metric_series(&self, name: &str) -> Option<&[(u64, f64)]> {
+        self.metrics.get(name).map(|v| v.as_slice())
     }
 
     fn push_event(&mut self, time: u64, event_type: EventType) {
@@ -288,6 +309,14 @@ impl Simulator {
     }
 
     fn process_actions(&mut self, source_node: NodeId, buffer: ActionBuffer) {
+        // First, fold metrics into simulator-wide store
+        for (name, value) in buffer.metrics {
+            self.metrics
+                .entry(name)
+                .or_default()
+                .push((self.time, value));
+        }
+
         for log in buffer.logs {
             info!("[{:?}] {}", source_node, log);
         }

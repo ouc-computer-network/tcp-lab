@@ -13,6 +13,7 @@ public class SystemContextImpl implements SystemContext {
             h.getFlags(),
             h.getWindowSize(),
             h.getChecksum(),
+            h.getUrgentPtr(),
             p
         );
     }
@@ -40,6 +41,11 @@ public class SystemContextImpl implements SystemContext {
     @Override
     public long now() {
         return NativeBridge.now();
+    }
+
+    @Override
+    public void recordMetric(String name, double value) {
+        NativeBridge.recordMetric(name, value);
     }
 }
 

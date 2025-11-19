@@ -5,7 +5,8 @@ mod runner;
 
 use clap::Parser;
 use tracing::info;
-use tcp_lab_core::{Simulator, SimConfig, TransportProtocol};
+use std::fs;
+use tcp_lab_core::{Simulator, SimConfig, TransportProtocol, TestScenario, TestAction};
 use crate::examples::{SimpleSender, SimpleReceiver};
 use crate::tui::{TuiApp, MemoryLogBuffer};
 
@@ -75,10 +76,41 @@ async fn main() -> anyhow::Result<()> {
         Box::new(SimpleReceiver::default())
     };
 
-    if let Some(scenario) = args.test_scenario {
-        // Run automated test
-        runner::run_scenario(&scenario, sender, receiver)?;
-        return Ok(());
+    // If a test scenario is provided, either run headless grader or visualize via TUI
+    if let Some(scenario_path) = &args.test_scenario {
+        if args.tui {
+            // Load scenario and run it through the TUI (no assertions, purely for visualization)
+            let content = fs::read_to_string(scenario_path)?;
+            let scenario: TestScenario = toml::from_str(&content)?;
+
+            let mut config = SimConfig::default();
+            scenario.config.apply_to(&mut config);
+
+            let mut sim = Simulator::new(config, sender, receiver);
+            for action in &scenario.actions {
+                match action {
+                    TestAction::AppSend { time, data } => {
+                        sim.schedule_app_send(*time, data.as_bytes().to_vec());
+                    }
+                    TestAction::DropNextFromSenderSeq { seq } => {
+                        sim.add_drop_sender_seq_once(*seq);
+                    }
+                    TestAction::DropNextFromReceiverAck { ack } => {
+                        sim.add_drop_receiver_ack_once(*ack);
+                    }
+                }
+            }
+
+            if let Some(buffer) = log_buffer {
+                let mut app = TuiApp::new(sim, buffer, Some(scenario.name.clone()));
+                app.run()?;
+            }
+            return Ok(());
+        } else {
+            // Run automated graded test (headless)
+            runner::run_scenario(scenario_path, sender, receiver)?;
+            return Ok(());
+        }
     }
 
     // Setup Default Simulation (if not testing)
@@ -99,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
 
     if args.tui {
         if let Some(buffer) = log_buffer {
-            let mut app = TuiApp::new(sim, buffer);
+            let mut app = TuiApp::new(sim, buffer, None);
             app.run()?;
         }
     } else {

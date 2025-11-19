@@ -94,6 +94,7 @@ test-sr: build
 run-rdt3: build
     cargo run -- \
         --tui \
+        --test-scenario tests/test_rdt3.toml \
         --classpath sdk/java/classes \
         --java-sender com.ouc.tcp.impl.Rdt3Sender \
         --java-receiver com.ouc.tcp.impl.Rdt3Receiver
@@ -101,6 +102,7 @@ run-rdt3: build
 run-gbn: build
     cargo run -- \
         --tui \
+        --test-scenario tests/test_gbn.toml \
         --classpath sdk/java/classes \
         --java-sender com.ouc.tcp.impl.GbnSender \
         --java-receiver com.ouc.tcp.impl.GbnReceiver
@@ -108,6 +110,7 @@ run-gbn: build
 run-sr: build
     cargo run -- \
         --tui \
+        --test-scenario tests/test_sr.toml \
         --classpath sdk/java/classes \
         --java-sender com.ouc.tcp.impl.SrSender \
         --java-receiver com.ouc.tcp.impl.SrReceiver
@@ -115,6 +118,7 @@ run-sr: build
 run-reno: build
     cargo run -- \
         --tui \
+        --test-scenario tests/test_reno.toml \
         --classpath sdk/java/classes \
         --java-sender com.ouc.tcp.impl.TcpRenoSender \
         --java-receiver com.ouc.tcp.impl.TcpRenoReceiver
@@ -122,6 +126,7 @@ run-reno: build
 run-tahoe: build
     cargo run -- \
         --tui \
+        --test-scenario tests/test_tahoe.toml \
         --classpath sdk/java/classes \
         --java-sender com.ouc.tcp.impl.TcpTahoeSender \
         --java-receiver com.ouc.tcp.impl.TcpTahoeReceiver

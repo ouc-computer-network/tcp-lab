@@ -24,6 +24,12 @@ pub trait SystemContext {
     
     /// Get current simulation time in ms
     fn now(&self) -> u64;
+
+    /// Record a numeric metric for visualization / grading (e.g., cwnd, ssthresh).
+    /// Implementations may aggregate these for later inspection in the TUI or grader.
+    fn record_metric(&mut self, _name: &str, _value: f64) {
+        // Default no-op so non-visual environments don't need to care.
+    }
 }
 
 /// The interface that students must implement.

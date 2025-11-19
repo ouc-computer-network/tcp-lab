@@ -1,6 +1,6 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString, JValue, JByteArray};
-use jni::sys::{jint, jlong, jbyte, jbyteArray};
+use jni::sys::{jint, jlong, jbyte, jbyteArray, jdouble};
 use std::cell::RefCell;
 use tcp_lab_core::{SystemContext, TransportProtocol, Packet, TcpHeader};
 use tracing::error;
@@ -65,6 +65,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_sendPacket(
     flags: jbyte,
     window: jint,
     checksum: jint,
+    urgent: jint,
     payload: jbyteArray,
 ) {
     let payload_vec = match env.convert_byte_array(unsafe { JByteArray::from_raw(payload) }) {
@@ -82,6 +83,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_sendPacket(
             flags: flags as u8,
             window_size: window as u16,
             checksum: checksum as u16,
+            urgent_ptr: urgent as u16,
             ..Default::default()
         };
         let packet = Packet::new(header, payload_vec);
@@ -148,6 +150,26 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_log(
 }
 
 #[no_mangle]
+pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_recordMetric(
+    mut env: JNIEnv,
+    _class: JClass,
+    name: JString,
+    value: jdouble,
+) {
+    let name_str: String = match env.get_string(&name) {
+        Ok(s) => s.into(),
+        Err(_) => {
+            error!("Invalid UTF-8 in metric name");
+            return;
+        }
+    };
+
+    use_context(|ctx| {
+        ctx.record_metric(&name_str, value as f64);
+    });
+}
+
+#[no_mangle]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_now(
     _env: JNIEnv,
     _class: JClass,
@@ -168,7 +190,7 @@ pub fn register_native_methods(env: &mut JNIEnv) -> jni::errors::Result<()> {
     let methods = [
         jni::NativeMethod {
             name: "sendPacket".into(),
-            sig: "(JJBII[B)V".into(),
+            sig: "(JJBIII[B)V".into(),
             fn_ptr: Java_com_ouc_tcp_sdk_NativeBridge_sendPacket as *mut _,
         },
         jni::NativeMethod {
@@ -195,6 +217,11 @@ pub fn register_native_methods(env: &mut JNIEnv) -> jni::errors::Result<()> {
             name: "now".into(),
             sig: "()J".into(),
             fn_ptr: Java_com_ouc_tcp_sdk_NativeBridge_now as *mut _,
+        },
+        jni::NativeMethod {
+            name: "recordMetric".into(),
+            sig: "(Ljava/lang/String;D)V".into(),
+            fn_ptr: Java_com_ouc_tcp_sdk_NativeBridge_recordMetric as *mut _,
         },
     ];
     env.register_native_methods(class, &methods)

@@ -1,0 +1,9 @@
+# Cargo configuration for tcp-lab project
+
+# Linux: Export dynamic symbols from the main executable so that
+# dynamically loaded C++ libraries can resolve tcp_lab_* functions
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-Wl,--export-dynamic"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-Wl,--export-dynamic"]

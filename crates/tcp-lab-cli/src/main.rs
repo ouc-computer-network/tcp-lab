@@ -2,11 +2,13 @@ mod examples;
 mod tui;
 mod java_loader;
 mod runner;
+mod cpp;
 
 use clap::Parser;
 use tracing::info;
 use std::fs;
 use tcp_lab_core::{Simulator, SimConfig, TransportProtocol, TestScenario, TestAction};
+use tcp_lab_ffi::ensure_linked;
 use crate::examples::{SimpleSender, SimpleReceiver};
 use crate::tui::{TuiApp, MemoryLogBuffer};
 
@@ -30,14 +32,23 @@ struct Args {
 
     #[arg(long)]
     test_scenario: Option<String>,
+
+    /// Path to a C++ sender shared library (e.g. libgbn_sender.so / .dylib / .dll).
+    #[arg(long)]
+    cpp_sender_lib: Option<String>,
+
+    /// Path to a C++ receiver shared library (same ABI as sender, but different logic).
+    #[arg(long)]
+    cpp_receiver_lib: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    ensure_linked();
 
     // Setup Logging
-    let log_buffer = if args.tui {
+    if args.tui {
         let buffer = MemoryLogBuffer::new();
         let writer_buffer = buffer.clone();
         
@@ -45,11 +56,9 @@ async fn main() -> anyhow::Result<()> {
             .with_writer(move || writer_buffer.clone())
             .with_ansi(false) 
             .init();
-        Some(buffer)
     } else {
         tracing_subscriber::fmt::init();
-        None
-    };
+    }
 
     info!("TCP Lab Simulator starting...");
 
@@ -65,6 +74,9 @@ async fn main() -> anyhow::Result<()> {
     let sender: Box<dyn TransportProtocol> = if let Some(cls) = &args.java_sender {
         info!("Loading Java Sender: {}", cls);
         java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
+    } else if let Some(path) = &args.cpp_sender_lib {
+        info!("Loading C++ Sender from {:?}", path);
+        cpp::loader::load_cpp_sender(path)?
     } else {
         Box::new(SimpleSender::default())
     };
@@ -72,6 +84,9 @@ async fn main() -> anyhow::Result<()> {
     let receiver: Box<dyn TransportProtocol> = if let Some(cls) = &args.java_receiver {
         info!("Loading Java Receiver: {}", cls);
         java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
+    } else if let Some(path) = &args.cpp_receiver_lib {
+        info!("Loading C++ Receiver from {:?}", path);
+        cpp::loader::load_cpp_sender(path)?
     } else {
         Box::new(SimpleReceiver::default())
     };
@@ -101,10 +116,8 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
-            if let Some(buffer) = log_buffer {
-                let mut app = TuiApp::new(sim, buffer, Some(scenario.name.clone()));
-                app.run()?;
-            }
+            let mut app = TuiApp::new(sim, Some(scenario.name.clone()));
+            app.run()?;
             return Ok(());
         } else {
             // Run automated graded test (headless)
@@ -130,10 +143,8 @@ async fn main() -> anyhow::Result<()> {
     sim.schedule_app_send(3000, b"Packet 3".to_vec());
 
     if args.tui {
-        if let Some(buffer) = log_buffer {
-            let mut app = TuiApp::new(sim, buffer, None);
-            app.run()?;
-        }
+        let mut app = TuiApp::new(sim, None);
+        app.run()?;
     } else {
         // Run headless
         info!("Starting simulation loop...");

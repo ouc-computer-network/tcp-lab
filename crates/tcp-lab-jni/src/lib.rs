@@ -56,7 +56,7 @@ where
 // Native Methods Implementation
 // ==========================================
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_sendPacket(
     env: JNIEnv,
     _class: JClass,
@@ -91,7 +91,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_sendPacket(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_startTimer(
     _env: JNIEnv,
     _class: JClass,
@@ -103,7 +103,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_startTimer(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_cancelTimer(
     _env: JNIEnv,
     _class: JClass,
@@ -114,7 +114,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_cancelTimer(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_deliverData(
     env: JNIEnv,
     _class: JClass,
@@ -133,7 +133,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_deliverData(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_log(
     mut env: JNIEnv,
     _class: JClass,
@@ -149,7 +149,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_log(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_recordMetric(
     mut env: JNIEnv,
     _class: JClass,
@@ -169,7 +169,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_recordMetric(
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_now(
     _env: JNIEnv,
     _class: JClass,

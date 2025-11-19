@@ -11,8 +11,9 @@ use crossterm::{
 };
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph, Chart, Axis, Dataset, GraphType},
+    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph},
 };
+use ratatui::widgets::canvas::{Canvas, Line as CanvasLine, Points};
 use tcp_lab_core::Simulator;
 
 /// A tracing subscriber that writes to a shared buffer for TUI display
@@ -36,12 +37,6 @@ impl MemoryLogBuffer {
             logs.remove(0);
         }
     }
-    
-    /// Return a clone of all log lines (for scrolling computations in TUI)
-    pub fn all_lines(&self) -> Vec<String> {
-        let logs = self.logs.lock().unwrap();
-        logs.clone()
-    }
 }
 
 impl io::Write for MemoryLogBuffer {
@@ -59,21 +54,22 @@ impl io::Write for MemoryLogBuffer {
 
 pub struct TuiApp {
     simulator: Simulator,
-    log_buffer: MemoryLogBuffer,
     paused: bool,
     scenario_name: Option<String>,
-    /// How many lines from the bottom we are scrolled up in the log view
-    log_scroll: usize,
+    /// Vertical scroll offset for link events list
+    link_scroll: usize,
 }
 
 impl TuiApp {
-    pub fn new(simulator: Simulator, log_buffer: MemoryLogBuffer, scenario_name: Option<String>) -> Self {
+    pub fn new(
+        simulator: Simulator,
+        scenario_name: Option<String>,
+    ) -> Self {
         Self {
             simulator,
-            log_buffer,
             paused: true, // Start paused
             scenario_name,
-            log_scroll: 0,
+            link_scroll: 0,
         }
     }
 
@@ -102,17 +98,19 @@ impl TuiApp {
                     match key.code {
                         KeyCode::Char('q') => break,
                         KeyCode::Char(' ') => self.paused = !self.paused,
-                        KeyCode::Char('s') => { // Step once
+                        KeyCode::Char('s') => {
+                            // Step once
                             self.simulator.step();
-                        },
+                        }
+                        // Vertical scroll in link events list
                         KeyCode::Up => {
-                            self.log_scroll = self.log_scroll.saturating_add(1);
-                        },
+                            self.link_scroll = self.link_scroll.saturating_add(1);
+                        }
                         KeyCode::Down => {
-                            if self.log_scroll > 0 {
-                                self.log_scroll -= 1;
+                            if self.link_scroll > 0 {
+                                self.link_scroll -= 1;
                             }
-                        },
+                        }
                         _ => {}
                     }
                 }
@@ -146,25 +144,19 @@ impl TuiApp {
     }
 
     fn ui(&self, f: &mut Frame) {
-        // Root layout: main view (top) + logs (bottom)
+        // Root layout: main view (top) + link events (bottom)
         let root = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(10),
-            ])
+            .constraints([Constraint::Min(0), Constraint::Length(10)])
             .split(f.area());
 
         let main_area = root[0];
-        let log_area = root[1];
+        let bottom_area = root[1];
 
         // Main area: left (dashboard) + right (window history / extra views)
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(main_area);
 
         // Left: Dashboard
@@ -173,8 +165,8 @@ impl TuiApp {
         // Right: Window history / additional view
         self.render_window_history(f, main_chunks[1]);
 
-        // Bottom: Logs (full-width, scrollable)
-        self.render_logs(f, log_area);
+        // Bottom: Link events (full-width)
+        self.render_link_events(f, bottom_area);
     }
 
     fn render_dashboard(&self, f: &mut Frame, area: Rect) {
@@ -182,14 +174,12 @@ impl TuiApp {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3), // Status bar
+                Constraint::Length(8), // Link space-time diagram
                 Constraint::Min(0),    // Main stats
             ])
             .split(area);
 
-        let scenario = self
-            .scenario_name
-            .as_deref()
-            .unwrap_or("Ad-hoc Simulation");
+        let scenario = self.scenario_name.as_deref().unwrap_or("Ad-hoc Simulation");
         let status_text = format!(
             "Scenario: {} | Time: {} ms | Status: {} | Events Pending: {} | (q)uit (space)pause/resume (s)tep",
             scenario,
@@ -201,19 +191,20 @@ impl TuiApp {
         let status_block = Paragraph::new(status_text)
             .block(Block::default().borders(Borders::ALL).title("Control"));
         f.render_widget(status_block, chunks[0]);
-        
+
         // Stats
         let delivered = self.simulator.delivered_data.len();
         let sent_packets = self.simulator.sender_packet_count;
         let (win_current, win_max) = if self.simulator.sender_window_sizes.is_empty() {
             (0u16, 0u16)
         } else {
-            let max = *self.simulator.sender_window_sizes.iter().max().unwrap_or(&0);
-            let cur = *self
+            let max = *self
                 .simulator
                 .sender_window_sizes
-                .last()
+                .iter()
+                .max()
                 .unwrap_or(&0);
+            let cur = *self.simulator.sender_window_sizes.last().unwrap_or(&0);
             (cur, max)
         };
 
@@ -236,29 +227,22 @@ impl TuiApp {
             Line::from("  s:     Step one event"),
             Line::from("  q:     Quit"),
         ];
-        
+
+        // Middle: link space-time diagram (Sender / Channel / Receiver)
+        self.render_link_space_time(f, chunks[1]);
+
+        // Bottom: stats
         let stats_block = Paragraph::new(stats_text)
             .block(Block::default().borders(Borders::ALL).title("Dashboard"));
-        f.render_widget(stats_block, chunks[1]);
+        f.render_widget(stats_block, chunks[2]);
     }
 
     fn render_window_history(&self, f: &mut Frame, area: Rect) {
         // 构造一张叠加图：前景 cwnd，背景 ssthresh
         // cwnd 优先来自 metrics("cwnd")，否则退化为 sender_window_sizes（按采样顺序）
 
-        let mut x_min = f64::MAX;
-        let mut x_max = f64::MIN;
         let mut y_min = f64::MAX;
         let mut y_max = f64::MIN;
-
-        let mut update_bounds = |pts: &[(f64, f64)]| {
-            for (x, y) in pts {
-                if *x < x_min { x_min = *x; }
-                if *x > x_max { x_max = *x; }
-                if *y < y_min { y_min = *y; }
-                if *y > y_max { y_max = *y; }
-            }
-        };
 
         // 先收集所有序列，避免同时对 Vec 可变+不可变借用
         let mut cwnd_series_vec: Option<Vec<(f64, f64)>> = None;
@@ -269,12 +253,23 @@ impl TuiApp {
             if !cwnd_series.is_empty() {
                 let pts: Vec<(f64, f64)> = cwnd_series
                     .iter()
-                    .map(|(t, v)| (*t as f64, *v))
+                    .enumerate()
+                    .map(|(i, (_, v))| (i as f64, *v))
                     .collect();
-                update_bounds(&pts);
-                cwnd_series_vec = Some(pts);
+                if !pts.is_empty() {
+                    for (_, y) in &pts {
+                        if *y < y_min {
+                            y_min = *y;
+                        }
+                        if *y > y_max {
+                            y_max = *y;
+                        }
+                    }
+                    cwnd_series_vec = Some(pts);
+                }
             }
         } else if !self.simulator.sender_window_sizes.is_empty() {
+            // 没有 metric 时退化为按索引显示，不支持时间缩放
             let pts: Vec<(f64, f64)> = self
                 .simulator
                 .sender_window_sizes
@@ -282,7 +277,14 @@ impl TuiApp {
                 .enumerate()
                 .map(|(i, w)| (i as f64, *w as f64))
                 .collect();
-            update_bounds(&pts);
+            for (_, y) in &pts {
+                if *y < y_min {
+                    y_min = *y;
+                }
+                if *y > y_max {
+                    y_max = *y;
+                }
+            }
             cwnd_series_vec = Some(pts);
         }
 
@@ -291,10 +293,20 @@ impl TuiApp {
             if !series.is_empty() {
                 let pts: Vec<(f64, f64)> = series
                     .iter()
-                    .map(|(t, v)| (*t as f64, *v))
+                    .enumerate()
+                    .map(|(i, (_, v))| (i as f64, *v))
                     .collect();
-                update_bounds(&pts);
-                ssthresh_series_vec = Some(pts);
+                if !pts.is_empty() {
+                    for (_, y) in &pts {
+                        if *y < y_min {
+                            y_min = *y;
+                        }
+                        if *y > y_max {
+                            y_max = *y;
+                        }
+                    }
+                    ssthresh_series_vec = Some(pts);
+                }
             }
         }
 
@@ -316,37 +328,31 @@ impl TuiApp {
                 Dataset::default()
                     .name("ssthresh")
                     .marker(symbols::Marker::Braille)
-                    .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM))
+                    .style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::DIM),
+                    )
                     .graph_type(GraphType::Line)
                     .data(pts),
             );
         }
 
-        if datasets.is_empty() {
+        if datasets.is_empty() || y_min == f64::MAX {
             let block = Paragraph::new("No window metrics yet")
                 .block(Block::default().borders(Borders::ALL).title("Window"));
             f.render_widget(block, area);
             return;
         }
 
-        if x_min == f64::MAX {
-            x_min = 0.0;
-            x_max = 1.0;
-            y_min = 0.0;
-            y_max = 1.0;
-        } else {
-            if (x_max - x_min).abs() < f64::EPSILON {
-                x_max += 1.0;
-            }
-            if (y_max - y_min).abs() < f64::EPSILON {
-                y_max += 1.0;
-            }
+        if (y_max - y_min).abs() < f64::EPSILON {
+            y_max += 1.0;
         }
 
         let x_labels = vec![
-            Span::raw(format!("{:.0}", x_min)),
+            Span::raw("0"),
             Span::raw(""),
-            Span::raw(format!("{:.0}", x_max)),
+            Span::raw("n"),
         ];
         let y_labels = vec![
             Span::raw(format!("{:.0}", y_min)),
@@ -355,11 +361,18 @@ impl TuiApp {
         ];
 
         let chart = Chart::new(datasets)
-            .block(Block::default().borders(Borders::ALL).title("Sender Window / ssthresh"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Sender Window / ssthresh"),
+            )
             .x_axis(
                 Axis::default()
                     .title("time")
-                    .bounds([x_min, x_max])
+                    .bounds([0.0, cwnd_series_vec
+                        .as_ref()
+                        .map(|v| v.len() as f64)
+                        .unwrap_or(1.0)])
                     .labels(x_labels),
             )
             .y_axis(
@@ -372,39 +385,193 @@ impl TuiApp {
         f.render_widget(chart, area);
     }
 
-    fn render_logs(&self, f: &mut Frame, area: Rect) {
+    fn render_link_space_time(&self, f: &mut Frame, area: Rect) {
+        let events = &self.simulator.link_events;
+        if events.is_empty() {
+            let block = Paragraph::new("No link activity yet")
+                .block(Block::default().borders(Borders::ALL).title("Link"));
+            f.render_widget(block, area);
+            return;
+        }
+
+        // 仅展示最近若干个事件，形成简单的“局部时空图”
+        let max_events = (area.width as usize).saturating_sub(4).max(4);
+        let tail = events
+            .iter()
+            .rev()
+            .take(max_events)
+            .collect::<Vec<_>>();
+        let window_events: Vec<_> = tail.into_iter().rev().collect();
+
+        let t_min = window_events
+            .first()
+            .map(|e| e.time as f64)
+            .unwrap_or(0.0);
+        let mut t_max = window_events
+            .last()
+            .map(|e| e.time as f64)
+            .unwrap_or(1.0);
+        if (t_max - t_min).abs() < f64::EPSILON {
+            t_max += 1.0;
+        }
+
+        // 构造发送箭头（Sender/Receiver 之间的斜线）
+        let mut lines: Vec<CanvasLine> = Vec::new();
+        let mut drop_points: Vec<(f64, f64)> = Vec::new();
+        let mut corrupt_points: Vec<(f64, f64)> = Vec::new();
+
+        for e in &window_events {
+            let desc = e.description.as_str();
+            let t0 = e.time as f64;
+
+            if desc.contains("SEND") {
+                // 方向：Sender->Receiver 或 Receiver->Sender
+                let (y_src, y_dst) = if desc.contains("[Sender->Receiver]") {
+                    (0.0, 2.0)
+                } else if desc.contains("[Receiver->Sender]") {
+                    (2.0, 0.0)
+                } else {
+                    (0.0, 2.0)
+                };
+
+                // 解析 latency=XXms
+                let mut latency = 0.0;
+                if let Some(idx) = desc.find("latency=") {
+                    let s = &desc[idx + "latency=".len()..];
+                    if let Some(end_idx) = s.find("ms") {
+                        if let Ok(v) = s[..end_idx].trim().parse::<f64>() {
+                            latency = v;
+                        }
+                    }
+                }
+                let t1 = if latency > 0.0 { t0 + latency } else { t0 + 1.0 };
+
+                // 两段折线：src -> channel -> dst
+                let mid_y = 1.0;
+                let mid_t = (t0 + t1) / 2.0;
+                lines.push(CanvasLine {
+                    x1: t0,
+                    y1: y_src,
+                    x2: mid_t,
+                    y2: mid_y,
+                    color: Color::White,
+                });
+                lines.push(CanvasLine {
+                    x1: mid_t,
+                    y1: mid_y,
+                    x2: t1,
+                    y2: y_dst,
+                    color: Color::White,
+                });
+            } else if desc.contains("DROP") {
+                drop_points.push((t0, 1.0));
+            } else if desc.contains("CORRUPT") {
+                corrupt_points.push((t0, 1.0));
+            }
+        }
+
+        let y_min = -0.5;
+        let y_max = 2.5;
+
+        let canvas = Canvas::default()
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Link Space-Time (use ↑/↓ to time travel)"),
+            )
+            .x_bounds([t_min, t_max])
+            .y_bounds([y_min, y_max])
+            .paint(|ctx| {
+                // 水平线：Sender / Channel / Receiver
+                ctx.draw(&CanvasLine {
+                    x1: t_min,
+                    y1: 0.0,
+                    x2: t_max,
+                    y2: 0.0,
+                    color: Color::Cyan,
+                });
+                ctx.draw(&CanvasLine {
+                    x1: t_min,
+                    y1: 1.0,
+                    x2: t_max,
+                    y2: 1.0,
+                    color: Color::Gray,
+                });
+                ctx.draw(&CanvasLine {
+                    x1: t_min,
+                    y1: 2.0,
+                    x2: t_max,
+                    y2: 2.0,
+                    color: Color::Yellow,
+                });
+
+                // 标签（简单文本，不带样式）
+                ctx.print(t_min, 0.0, "S");
+                ctx.print(t_min, 1.0, "ch");
+                ctx.print(t_min, 2.0, "R");
+
+                // 画包的折线轨迹
+                for line in &lines {
+                    ctx.draw(line);
+                }
+
+                // 故障点
+                if !drop_points.is_empty() {
+                    ctx.draw(&Points {
+                        coords: &drop_points,
+                        color: Color::Red,
+                    });
+                }
+                if !corrupt_points.is_empty() {
+                    ctx.draw(&Points {
+                        coords: &corrupt_points,
+                        color: Color::Yellow,
+                    });
+                }
+            });
+
+        f.render_widget(canvas, area);
+    }
+
+    fn render_link_events(&self, f: &mut Frame, area: Rect) {
+        let events = &self.simulator.link_events;
+        if events.is_empty() {
+            let block = Paragraph::new("No link events yet")
+                .block(Block::default().borders(Borders::ALL).title("Link Events"));
+            f.render_widget(block, area);
+            return;
+        }
+
         let height = area.height.max(3) as usize;
         let visible = height - 2; // account for borders
-        let all_logs = self.log_buffer.all_lines();
-        let total = all_logs.len();
-
-        // Compute scroll bounds
+        let total = events.len();
         let max_scroll = total.saturating_sub(visible);
-        let scroll = self.log_scroll.min(max_scroll);
+        let scroll = self.link_scroll.min(max_scroll);
         let start = total.saturating_sub(visible + scroll);
         let end = total.saturating_sub(scroll);
         let start = start.max(0);
         let end = end.max(start);
-        let slice = &all_logs[start..end];
-        
+        let slice = &events[start..end];
+
         let items: Vec<ListItem> = slice
             .iter()
-            .map(|log| {
-                // 简单按前缀为 Sender/Receiver 日志着色
-                let style = if log.contains("[Sender]") {
-                    Style::default().fg(Color::Cyan)
-                } else if log.contains("[Receiver]") {
-                    Style::default().fg(Color::Yellow)
+            .map(|e| {
+                let text = format!("[{:>5} ms] {}", e.time, e.description);
+                let style = if e.description.contains("DROP") || e.description.contains("CORRUPT")
+                {
+                    Style::default().fg(Color::Red)
+                } else if e.description.contains("DELIVERED") {
+                    Style::default().fg(Color::Green)
                 } else {
-                    Style::default()
+                    Style::default().fg(Color::White)
                 };
-                ListItem::new(Line::from(Span::styled(log.as_str(), style)))
+                ListItem::new(Line::from(Span::styled(text, style)))
             })
             .collect();
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Logs"));
-        
+            .block(Block::default().borders(Borders::ALL).title("Link Events"));
+
         f.render_widget(list, area);
     }
 }

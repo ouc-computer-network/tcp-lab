@@ -65,6 +65,13 @@ impl Ord for Event {
     }
 }
 
+/// A compact textual summary of important link-layer events for visualization.
+#[derive(Debug, Clone)]
+pub struct LinkEventSummary {
+    pub time: u64,
+    pub description: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct SimConfig {
     pub loss_rate: f64,
@@ -173,6 +180,9 @@ pub struct Simulator {
     drop_sender_seq_once: Vec<u32>,
     // Deterministic fault injection: drop first ACK from Receiver with given ack numbers
     drop_receiver_ack_once: Vec<u32>,
+
+    /// Timeline of link events (drops, corruptions, sends, deliveries) for TUI visualization.
+    pub link_events: Vec<LinkEventSummary>,
 }
 
 impl Simulator {
@@ -194,6 +204,7 @@ impl Simulator {
             metrics: HashMap::new(),
             drop_sender_seq_once: Vec::new(),
             drop_receiver_ack_once: Vec::new(),
+            link_events: Vec::new(),
         }
     }
 
@@ -322,8 +333,16 @@ impl Simulator {
         }
 
         for data in buffer.delivered_data {
-             info!("[{:?}] DELIVERED DATA: {} bytes", source_node, data.len());
-             self.delivered_data.push(data);
+            info!("[{:?}] DELIVERED DATA: {} bytes", source_node, data.len());
+            self.link_events.push(LinkEventSummary {
+                time: self.time,
+                description: format!(
+                    "[{:?}] DELIVERED {} bytes to application",
+                    source_node,
+                    data.len()
+                ),
+            });
+            self.delivered_data.push(data);
         }
 
         for (delay, id) in buffer.timers_start {
@@ -349,6 +368,13 @@ impl Simulator {
                     .iter()
                     .position(|s| *s == packet.header.seq_num)
                 {
+                    self.link_events.push(LinkEventSummary {
+                        time: self.time,
+                        description: format!(
+                            "[Sender->Receiver] DROP (deterministic seq) seq={}",
+                            packet.header.seq_num
+                        ),
+                    });
                     debug!("Deterministically dropping sender packet with seq={}", packet.header.seq_num);
                     self.drop_sender_seq_once.remove(pos);
                     continue;
@@ -363,6 +389,13 @@ impl Simulator {
                         .iter()
                         .position(|a| *a == packet.header.ack_num)
                     {
+                        self.link_events.push(LinkEventSummary {
+                            time: self.time,
+                            description: format!(
+                                "[Receiver->Sender] DROP (deterministic ack) ack={}",
+                                packet.header.ack_num
+                            ),
+                        });
                         debug!("Deterministically dropping receiver ACK with ack={}", packet.header.ack_num);
                         self.drop_receiver_ack_once.remove(pos);
                         continue;
@@ -372,12 +405,32 @@ impl Simulator {
 
             // 1. Check Loss
             if self.rng.random::<f64>() < self.config.loss_rate {
+                self.link_events.push(LinkEventSummary {
+                    time: self.time,
+                    description: format!(
+                        "[{:?}->{:?}] DROP (random loss) seq={} ack={}",
+                        source_node,
+                        source_node.peer(),
+                        packet.header.seq_num,
+                        packet.header.ack_num
+                    ),
+                });
                 debug!("Packet lost in channel");
                 continue;
             }
 
             // 2. Check Corruption
             if self.rng.random::<f64>() < self.config.corrupt_rate {
+                self.link_events.push(LinkEventSummary {
+                    time: self.time,
+                    description: format!(
+                        "[{:?}->{:?}] CORRUPT seq={} ack={}",
+                        source_node,
+                        source_node.peer(),
+                        packet.header.seq_num,
+                        packet.header.ack_num
+                    ),
+                });
                 debug!("Packet corrupted in channel");
                 // Simple corruption: flip the checksum to make it invalid
                 packet.header.checksum = !packet.header.checksum;
@@ -389,6 +442,18 @@ impl Simulator {
 
             // 4. Target Node
             let target_node = source_node.peer();
+
+            self.link_events.push(LinkEventSummary {
+                time: self.time,
+                description: format!(
+                    "[{:?}->{:?}] SEND seq={} ack={} (latency={}ms)",
+                    source_node,
+                    target_node,
+                    packet.header.seq_num,
+                    packet.header.ack_num,
+                    latency
+                ),
+            });
 
             self.push_event(arrival_time, EventType::PacketArrival {
                 to: target_node,

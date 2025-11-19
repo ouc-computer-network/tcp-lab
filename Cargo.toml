@@ -3,6 +3,7 @@ members = [
     "crates/tcp-lab-core",
     "crates/tcp-lab-cli",
     "crates/tcp-lab-jni",
+    "crates/tcp-lab-ffi",
 ]
 resolver = "2"
 

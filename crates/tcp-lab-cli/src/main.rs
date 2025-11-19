@@ -103,14 +103,14 @@ async fn main() -> anyhow::Result<()> {
     // Setup Protocols
     let sender: Box<dyn TransportProtocol> = if let Some(cls) = &args.java_sender {
         info!("Loading Java Sender: {}", cls);
-        java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
+        java_loader::load_protocol(jvm.as_ref().unwrap(), cls)?
     } else if let Some(path) = &args.cpp_sender_lib {
         info!("Loading C++ Sender from {:?}", path);
         cpp::loader::load_protocol(path)?
     } else if let Some(py_arg) = &args.python_sender {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Sender: {}.{}", module, class);
-        python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
+        python::loader::load_protocol(&module, &class, args.python_path.as_deref())?
     } else if args.rust_rdt3_sender {
         info!("Loading Rust RDT3 Sender");
         Box::new(tcp_lab_rust::examples::rdt3_sender::Rdt3Sender::new())
@@ -120,14 +120,14 @@ async fn main() -> anyhow::Result<()> {
 
     let receiver: Box<dyn TransportProtocol> = if let Some(cls) = &args.java_receiver {
         info!("Loading Java Receiver: {}", cls);
-        java_loader::load_java_protocol(jvm.as_ref().unwrap(), cls)?
+        java_loader::load_protocol(jvm.as_ref().unwrap(), cls)?
     } else if let Some(path) = &args.cpp_receiver_lib {
         info!("Loading C++ Receiver from {:?}", path);
         cpp::loader::load_protocol(path)?
     } else if let Some(py_arg) = &args.python_receiver {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Receiver: {}.{}", module, class);
-        python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
+        python::loader::load_protocol(&module, &class, args.python_path.as_deref())?
     } else if args.rust_rdt3_receiver {
         info!("Loading Rust RDT3 Receiver");
         Box::new(tcp_lab_rust::examples::rdt3_receiver::Rdt3Receiver::new())

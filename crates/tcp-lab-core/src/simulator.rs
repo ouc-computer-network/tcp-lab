@@ -306,7 +306,7 @@ impl Simulator {
                 let mut buffer = ActionBuffer::default();
                 {
                     let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
-                    self.sender.send(&mut ctx, &data);
+                    self.sender.on_app_data(&mut ctx, &data);
                 }
                 self.process_actions(NodeId::Sender, buffer);
             }

@@ -131,7 +131,7 @@ impl TransportProtocol for CppTransportProtocol {
         }
     }
 
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
         unsafe {
             with_context(ctx, || {
                 (self.on_app_data_fn)(self.instance, data.as_ptr(), data.len());

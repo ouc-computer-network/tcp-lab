@@ -96,7 +96,7 @@ impl TransportProtocol for PythonTransportProtocol {
         })
     }
 
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
         with_context(ctx, || {
             Python::attach(|py| {
                 let py_ctx = PySystemContext::new();
@@ -113,7 +113,7 @@ impl TransportProtocol for PythonTransportProtocol {
     }
 }
 
-pub fn load_python_sender(
+pub fn load_protocol(
     module: &str,
     class: &str,
     path: Option<&str>,

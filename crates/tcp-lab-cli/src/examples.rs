@@ -16,7 +16,7 @@ impl TransportProtocol for SimpleSender {
         // No timers yet
     }
 
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
         ctx.log(&format!("Sending data: {:?}", data));
         let packet = Packet::new_simple(0, 0, 0, data.to_vec());
         ctx.send_packet(packet);
@@ -42,5 +42,5 @@ impl TransportProtocol for SimpleReceiver {
 
     fn on_timer(&mut self, _ctx: &mut dyn SystemContext, _timer_id: u32) {}
 
-    fn send(&mut self, _ctx: &mut dyn SystemContext, _data: &[u8]) {}
+    fn on_app_data(&mut self, _ctx: &mut dyn SystemContext, _data: &[u8]) {}
 }

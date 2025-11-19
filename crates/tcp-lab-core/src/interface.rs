@@ -45,6 +45,6 @@ pub trait TransportProtocol {
 
     /// Called when the Application Layer wants to send data reliably.
     /// The protocol should encapsulate this data into packets and send them.
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]);
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]);
 }
 

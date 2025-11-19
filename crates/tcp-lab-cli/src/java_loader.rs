@@ -22,7 +22,7 @@ pub fn create_jvm(classpath: &str) -> anyhow::Result<Arc<JavaVM>> {
     Ok(Arc::new(jvm))
 }
 
-pub fn load_java_protocol(
+pub fn load_protocol(
     jvm: &Arc<JavaVM>,
     class_name: &str,
 ) -> anyhow::Result<Box<dyn TransportProtocol>> {

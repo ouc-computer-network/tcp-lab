@@ -346,7 +346,7 @@ impl TransportProtocol for JavaTransportProtocol {
         });
     }
 
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
         self.call_java(ctx, |env, obj, ctx_obj| {
             let data_arr = env.byte_array_from_slice(data)?;
             env.call_method(

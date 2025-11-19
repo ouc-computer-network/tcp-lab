@@ -1,10 +1,10 @@
 use jni::JNIEnv;
-use jni::objects::{JClass, JObject, JString, JValue, JByteArray};
-use jni::sys::{jint, jlong, jbyte, jbyteArray, jdouble};
+use jni::objects::{JByteArray, JClass, JObject, JString, JValue};
+use jni::sys::{jbyte, jbyteArray, jdouble, jint, jlong};
 use std::cell::RefCell;
-use tcp_lab_core::{SystemContext, TransportProtocol, Packet, TcpHeader};
-use tracing::error;
 use std::sync::Arc;
+use tcp_lab_core::{Packet, SystemContext, TcpHeader, TransportProtocol};
+use tracing::error;
 
 // ==========================================
 // TLS Context Management
@@ -21,7 +21,7 @@ where
 {
     let ptr = ctx as *mut dyn SystemContext;
     let static_ptr: *mut (dyn SystemContext + 'static) = unsafe { std::mem::transmute(ptr) };
-    
+
     CURRENT_CONTEXT.with(|c| {
         *c.borrow_mut() = Some(static_ptr);
     });
@@ -240,10 +240,17 @@ pub struct JavaTransportProtocol {
 impl JavaTransportProtocol {
     pub fn new(jvm: Arc<jni::JavaVM>, instance: jni::objects::GlobalRef) -> Self {
         let ctx_ref = {
-            let mut env = jvm.attach_current_thread().expect("Failed to attach thread");
-            let ctx_cls = env.find_class("com/ouc/tcp/sdk/SystemContextImpl").expect("Failed to find SystemContextImpl");
-            let ctx_obj = env.new_object(ctx_cls, "()V", &[]).expect("Failed to create SystemContextImpl");
-            env.new_global_ref(ctx_obj).expect("Failed to create global ref")
+            let mut env = jvm
+                .attach_current_thread()
+                .expect("Failed to attach thread");
+            let ctx_cls = env
+                .find_class("com/ouc/tcp/sdk/SystemContextImpl")
+                .expect("Failed to find SystemContextImpl");
+            let ctx_obj = env
+                .new_object(ctx_cls, "()V", &[])
+                .expect("Failed to create SystemContextImpl");
+            env.new_global_ref(ctx_obj)
+                .expect("Failed to create global ref")
         };
 
         Self {
@@ -268,7 +275,7 @@ impl JavaTransportProtocol {
         with_context(ctx, || {
             let obj = self.instance.as_ref().unwrap().as_obj();
             let ctx_obj = self.context_impl.as_ref().unwrap().as_obj();
-            
+
             if let Err(e) = op(&mut env, &obj, &ctx_obj) {
                 error!("Java exception or JNI error: {:?}", e);
                 if env.exception_check().unwrap_or(false) {
@@ -284,7 +291,7 @@ impl Drop for JavaTransportProtocol {
     fn drop(&mut self) {
         // Attach current thread to JVM to safely drop GlobalRefs
         let _guard = self.jvm.attach_current_thread().ok();
-        
+
         // Explicitly drop the GlobalRefs while we are attached
         self.instance = None;
         self.context_impl = None;
@@ -295,10 +302,10 @@ impl TransportProtocol for JavaTransportProtocol {
     fn init(&mut self, ctx: &mut dyn SystemContext) {
         self.call_java(ctx, |env, obj, ctx_obj| {
             env.call_method(
-                obj, 
-                "init", 
-                "(Lcom/ouc/tcp/sdk/SystemContext;)V", 
-                &[JValue::Object(ctx_obj)]
+                obj,
+                "init",
+                "(Lcom/ouc/tcp/sdk/SystemContext;)V",
+                &[JValue::Object(ctx_obj)],
             )?;
             Ok(())
         });
@@ -308,27 +315,52 @@ impl TransportProtocol for JavaTransportProtocol {
         self.call_java(ctx, |env, obj, ctx_obj| {
             let header_cls = env.find_class("com/ouc/tcp/sdk/TcpHeader")?;
             let header_obj = env.new_object(header_cls, "()V", &[])?;
-            
-            env.call_method(&header_obj, "setSeqNum", "(J)V", &[JValue::Long(packet.header.seq_num as i64)])?;
-            env.call_method(&header_obj, "setAckNum", "(J)V", &[JValue::Long(packet.header.ack_num as i64)])?;
-            env.call_method(&header_obj, "setFlags", "(B)V", &[JValue::Byte(packet.header.flags as i8)])?;
-            env.call_method(&header_obj, "setWindowSize", "(I)V", &[JValue::Int(packet.header.window_size as i32)])?;
-            env.call_method(&header_obj, "setChecksum", "(I)V", &[JValue::Int(packet.header.checksum as i32)])?;
-            
+
+            env.call_method(
+                &header_obj,
+                "setSeqNum",
+                "(J)V",
+                &[JValue::Long(packet.header.seq_num as i64)],
+            )?;
+            env.call_method(
+                &header_obj,
+                "setAckNum",
+                "(J)V",
+                &[JValue::Long(packet.header.ack_num as i64)],
+            )?;
+            env.call_method(
+                &header_obj,
+                "setFlags",
+                "(B)V",
+                &[JValue::Byte(packet.header.flags as i8)],
+            )?;
+            env.call_method(
+                &header_obj,
+                "setWindowSize",
+                "(I)V",
+                &[JValue::Int(packet.header.window_size as i32)],
+            )?;
+            env.call_method(
+                &header_obj,
+                "setChecksum",
+                "(I)V",
+                &[JValue::Int(packet.header.checksum as i32)],
+            )?;
+
             let payload_arr = env.byte_array_from_slice(&packet.payload)?;
-            
+
             let packet_cls = env.find_class("com/ouc/tcp/sdk/Packet")?;
             let packet_obj = env.new_object(
-                packet_cls, 
-                "(Lcom/ouc/tcp/sdk/TcpHeader;[B)V", 
-                &[JValue::Object(&header_obj), JValue::Object(&payload_arr)]
+                packet_cls,
+                "(Lcom/ouc/tcp/sdk/TcpHeader;[B)V",
+                &[JValue::Object(&header_obj), JValue::Object(&payload_arr)],
             )?;
 
             env.call_method(
                 obj,
                 "onPacket",
                 "(Lcom/ouc/tcp/sdk/SystemContext;Lcom/ouc/tcp/sdk/Packet;)V",
-                &[JValue::Object(ctx_obj), JValue::Object(&packet_obj)]
+                &[JValue::Object(ctx_obj), JValue::Object(&packet_obj)],
             )?;
             Ok(())
         });
@@ -340,7 +372,7 @@ impl TransportProtocol for JavaTransportProtocol {
                 obj,
                 "onTimer",
                 "(Lcom/ouc/tcp/sdk/SystemContext;I)V",
-                &[JValue::Object(ctx_obj), JValue::Int(timer_id as i32)]
+                &[JValue::Object(ctx_obj), JValue::Int(timer_id as i32)],
             )?;
             Ok(())
         });
@@ -353,7 +385,7 @@ impl TransportProtocol for JavaTransportProtocol {
                 obj,
                 "onAppData",
                 "(Lcom/ouc/tcp/sdk/SystemContext;[B)V",
-                &[JValue::Object(ctx_obj), JValue::Object(&data_arr)]
+                &[JValue::Object(ctx_obj), JValue::Object(&data_arr)],
             )?;
             Ok(())
         });

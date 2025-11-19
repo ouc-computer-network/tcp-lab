@@ -1,4 +1,4 @@
-use crate::{TransportProtocol, SystemContext, Packet, TcpHeader, flags};
+use crate::{Packet, SystemContext, TcpHeader, TransportProtocol, flags};
 
 pub struct Rdt3Sender {
     next_seq: u32,
@@ -14,7 +14,7 @@ impl Rdt3Sender {
             current_packet: None,
         }
     }
-    
+
     fn checksum(seq: u32, data: &[u8]) -> u16 {
         let mut sum = seq;
         for &b in data {
@@ -36,7 +36,7 @@ impl TransportProtocol for Rdt3Sender {
         self.current_packet = None;
     }
 
-    fn send(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
+    fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]) {
         if self.is_waiting {
             ctx.log("RDT3 Sender Busy: Dropping application data");
             return;
@@ -63,7 +63,10 @@ impl TransportProtocol for Rdt3Sender {
         let corrupted = Self::is_corrupted(h, &packet.payload);
 
         if corrupted || ((h.flags & flags::ACK != 0) && h.ack_num != self.next_seq) {
-            ctx.log(&format!("Corrupted or Duplicate ACK. Retransmitting {}", self.next_seq));
+            ctx.log(&format!(
+                "Corrupted or Duplicate ACK. Retransmitting {}",
+                self.next_seq
+            ));
             ctx.cancel_timer(self.next_seq);
             if let Some(pkt) = &self.current_packet {
                 ctx.send_packet(pkt.clone());

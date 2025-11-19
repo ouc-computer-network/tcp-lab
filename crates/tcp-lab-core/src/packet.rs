@@ -57,10 +57,18 @@ impl TcpHeader {
         }
     }
 
-    pub fn is_syn(&self) -> bool { self.flags & flags::SYN != 0 }
-    pub fn is_ack(&self) -> bool { self.flags & flags::ACK != 0 }
-    pub fn is_fin(&self) -> bool { self.flags & flags::FIN != 0 }
-    pub fn is_rst(&self) -> bool { self.flags & flags::RST != 0 }
+    pub fn is_syn(&self) -> bool {
+        self.flags & flags::SYN != 0
+    }
+    pub fn is_ack(&self) -> bool {
+        self.flags & flags::ACK != 0
+    }
+    pub fn is_fin(&self) -> bool {
+        self.flags & flags::FIN != 0
+    }
+    pub fn is_rst(&self) -> bool {
+        self.flags & flags::RST != 0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +88,7 @@ impl Packet {
             payload,
         }
     }
-    
+
     /// Create a pure ACK packet
     pub fn new_ack(seq: u32, ack: u32, window: u16) -> Self {
         Self {
@@ -93,4 +101,3 @@ impl Packet {
         self.payload.len() // Simplified: only payload length matters for some metrics
     }
 }
-

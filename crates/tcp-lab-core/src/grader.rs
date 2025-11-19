@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use crate::simulator::SimConfig;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TestScenario {
@@ -21,11 +21,21 @@ pub struct SimConfigOverride {
 
 impl SimConfigOverride {
     pub fn apply_to(&self, config: &mut SimConfig) {
-        if let Some(v) = self.loss_rate { config.loss_rate = v; }
-        if let Some(v) = self.corrupt_rate { config.corrupt_rate = v; }
-        if let Some(v) = self.min_latency { config.min_latency = v; }
-        if let Some(v) = self.max_latency { config.max_latency = v; }
-        if let Some(v) = self.seed { config.seed = v; }
+        if let Some(v) = self.loss_rate {
+            config.loss_rate = v;
+        }
+        if let Some(v) = self.corrupt_rate {
+            config.corrupt_rate = v;
+        }
+        if let Some(v) = self.min_latency {
+            config.min_latency = v;
+        }
+        if let Some(v) = self.max_latency {
+            config.max_latency = v;
+        }
+        if let Some(v) = self.seed {
+            config.seed = v;
+        }
     }
 }
 
@@ -54,4 +64,3 @@ pub enum TestAssertion {
     /// Assert that simulation finishes within time
     MaxDuration { ms: u64 },
 }
-

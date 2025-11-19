@@ -7,13 +7,13 @@ use std::{
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use ratatui::widgets::canvas::{Canvas, Line as CanvasLine, Points};
 use ratatui::{
     prelude::*,
     widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph},
 };
-use ratatui::widgets::canvas::{Canvas, Line as CanvasLine, Points};
 use tcp_lab_core::Simulator;
 
 /// A tracing subscriber that writes to a shared buffer for TUI display
@@ -61,10 +61,7 @@ pub struct TuiApp {
 }
 
 impl TuiApp {
-    pub fn new(
-        simulator: Simulator,
-        scenario_name: Option<String>,
-    ) -> Self {
+    pub fn new(simulator: Simulator, scenario_name: Option<String>) -> Self {
         Self {
             simulator,
             paused: true, // Start paused
@@ -349,11 +346,7 @@ impl TuiApp {
             y_max += 1.0;
         }
 
-        let x_labels = vec![
-            Span::raw("0"),
-            Span::raw(""),
-            Span::raw("n"),
-        ];
+        let x_labels = vec![Span::raw("0"), Span::raw(""), Span::raw("n")];
         let y_labels = vec![
             Span::raw(format!("{:.0}", y_min)),
             Span::raw(""),
@@ -369,10 +362,13 @@ impl TuiApp {
             .x_axis(
                 Axis::default()
                     .title("time")
-                    .bounds([0.0, cwnd_series_vec
-                        .as_ref()
-                        .map(|v| v.len() as f64)
-                        .unwrap_or(1.0)])
+                    .bounds([
+                        0.0,
+                        cwnd_series_vec
+                            .as_ref()
+                            .map(|v| v.len() as f64)
+                            .unwrap_or(1.0),
+                    ])
                     .labels(x_labels),
             )
             .y_axis(
@@ -396,21 +392,11 @@ impl TuiApp {
 
         // 仅展示最近若干个事件，形成简单的“局部时空图”
         let max_events = (area.width as usize).saturating_sub(4).max(4);
-        let tail = events
-            .iter()
-            .rev()
-            .take(max_events)
-            .collect::<Vec<_>>();
+        let tail = events.iter().rev().take(max_events).collect::<Vec<_>>();
         let window_events: Vec<_> = tail.into_iter().rev().collect();
 
-        let t_min = window_events
-            .first()
-            .map(|e| e.time as f64)
-            .unwrap_or(0.0);
-        let mut t_max = window_events
-            .last()
-            .map(|e| e.time as f64)
-            .unwrap_or(1.0);
+        let t_min = window_events.first().map(|e| e.time as f64).unwrap_or(0.0);
+        let mut t_max = window_events.last().map(|e| e.time as f64).unwrap_or(1.0);
         if (t_max - t_min).abs() < f64::EPSILON {
             t_max += 1.0;
         }
@@ -444,7 +430,11 @@ impl TuiApp {
                         }
                     }
                 }
-                let t1 = if latency > 0.0 { t0 + latency } else { t0 + 1.0 };
+                let t1 = if latency > 0.0 {
+                    t0 + latency
+                } else {
+                    t0 + 1.0
+                };
 
                 // 两段折线：src -> channel -> dst
                 let mid_y = 1.0;
@@ -557,8 +547,7 @@ impl TuiApp {
             .iter()
             .map(|e| {
                 let text = format!("[{:>5} ms] {}", e.time, e.description);
-                let style = if e.description.contains("DROP") || e.description.contains("CORRUPT")
-                {
+                let style = if e.description.contains("DROP") || e.description.contains("CORRUPT") {
                     Style::default().fg(Color::Red)
                 } else if e.description.contains("DELIVERED") {
                     Style::default().fg(Color::Green)
@@ -569,8 +558,8 @@ impl TuiApp {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Link Events"));
+        let list =
+            List::new(items).block(Block::default().borders(Borders::ALL).title("Link Events"));
 
         f.render_widget(list, area);
     }

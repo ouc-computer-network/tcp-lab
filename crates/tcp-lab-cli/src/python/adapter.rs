@@ -10,17 +10,20 @@ pub fn to_py_packet<'py>(py: Python<'py>, packet: Packet) -> PyResult<Bound<'py,
     let packet_cls = structs_mod.getattr("Packet")?;
 
     let h = packet.header;
-    let py_header = header_cls.call((
-        h.seq_num,
-        h.ack_num,
-        h.flags,
-        h.window_size,
-        h.checksum,
-        h.urgent_ptr,
-    ), None)?;
+    let py_header = header_cls.call(
+        (
+            h.seq_num,
+            h.ack_num,
+            h.flags,
+            h.window_size,
+            h.checksum,
+            h.urgent_ptr,
+        ),
+        None,
+    )?;
 
     let py_payload = PyBytes::new(py, &packet.payload);
-    
+
     packet_cls.call1((py_header, py_payload))
 }
 
@@ -28,14 +31,14 @@ pub fn to_py_packet<'py>(py: Python<'py>, packet: Packet) -> PyResult<Bound<'py,
 pub fn from_py_packet(obj: &Bound<'_, PyAny>) -> PyResult<Packet> {
     let header_obj = obj.getattr("header")?;
     let payload_obj = obj.getattr("payload")?;
-    
+
     let seq_num: u32 = header_obj.getattr("seq_num")?.extract()?;
     let ack_num: u32 = header_obj.getattr("ack_num")?.extract()?;
     let flags: u8 = header_obj.getattr("flags")?.extract()?;
     let window_size: u16 = header_obj.getattr("window_size")?.extract()?;
     let checksum: u16 = header_obj.getattr("checksum")?.extract()?;
     let urgent_ptr: u16 = header_obj.getattr("urgent_ptr")?.extract()?;
-    
+
     let payload: Vec<u8> = payload_obj.extract()?;
 
     let header = TcpHeader {
@@ -49,9 +52,5 @@ pub fn from_py_packet(obj: &Bound<'_, PyAny>) -> PyResult<Packet> {
         urgent_ptr,
     };
 
-    Ok(Packet {
-        header,
-        payload,
-    })
+    Ok(Packet { header, payload })
 }
-

@@ -1,7 +1,7 @@
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
 use std::cell::RefCell;
 use tcp_lab_core::SystemContext;
-use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
 
 use super::adapter;
 
@@ -18,12 +18,12 @@ where
 {
     let ptr = ctx as *mut dyn SystemContext;
     // Transmute to extend lifetime to 'static for storage in TLS.
-    // SAFETY: We guarantee that `ptr` is valid for the duration of `f()` 
+    // SAFETY: We guarantee that `ptr` is valid for the duration of `f()`
     // and we clear it immediately after.
-    let static_ptr = unsafe { 
-        std::mem::transmute::<*mut dyn SystemContext, *mut (dyn SystemContext + 'static)>(ptr) 
+    let static_ptr = unsafe {
+        std::mem::transmute::<*mut dyn SystemContext, *mut (dyn SystemContext + 'static)>(ptr)
     };
-    
+
     CURRENT_CONTEXT.with(|c| {
         *c.borrow_mut() = Some(static_ptr);
     });
@@ -43,12 +43,14 @@ where
 {
     CURRENT_CONTEXT.with(|c| {
         if let Some(ptr) = *c.borrow() {
-            // SAFETY: The pointer is valid because `with_context` ensures it 
+            // SAFETY: The pointer is valid because `with_context` ensures it
             // stays valid for the duration of the callback.
             let ctx = unsafe { &mut *ptr };
             f(ctx)
         } else {
-            Err(PyRuntimeError::new_err("SystemContext not active (called outside callback?)"))
+            Err(PyRuntimeError::new_err(
+                "SystemContext not active (called outside callback?)",
+            ))
         }
     })
 }
@@ -102,9 +104,7 @@ impl PySystemContext {
     }
 
     fn now(&self) -> PyResult<u64> {
-        use_context(|ctx| {
-            Ok(ctx.now())
-        })
+        use_context(|ctx| Ok(ctx.now()))
     }
 
     fn record_metric(&self, name: &str, value: f64) -> PyResult<()> {

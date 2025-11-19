@@ -21,7 +21,7 @@ pub trait SystemContext {
 
     /// Log a message to the simulator's debug output.
     fn log(&mut self, message: &str);
-    
+
     /// Get current simulation time in ms
     fn now(&self) -> u64;
 
@@ -47,4 +47,3 @@ pub trait TransportProtocol {
     /// The protocol should encapsulate this data into packets and send them.
     fn on_app_data(&mut self, ctx: &mut dyn SystemContext, data: &[u8]);
 }
-

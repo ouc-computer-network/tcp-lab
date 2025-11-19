@@ -1,6 +1,6 @@
 use std::cell::RefCell;
-use std::slice;
 use std::ptr;
+use std::slice;
 
 use tcp_lab_core::{Packet, SystemContext, TcpHeader};
 use tracing::error;
@@ -19,15 +19,10 @@ thread_local! {
 #[inline(never)]
 pub fn ensure_linked() {
     unsafe {
-        ptr::read_volatile(&(tcp_lab_send_packet as unsafe extern "C" fn(
-            u32,
-            u32,
-            u8,
-            u16,
-            u16,
-            *const u8,
-            usize,
-        )));
+        ptr::read_volatile(
+            &(tcp_lab_send_packet
+                as unsafe extern "C" fn(u32, u32, u8, u16, u16, *const u8, usize)),
+        );
         ptr::read_volatile(&(tcp_lab_start_timer as unsafe extern "C" fn(u64, i32)));
         ptr::read_volatile(&(tcp_lab_cancel_timer as unsafe extern "C" fn(i32)));
         ptr::read_volatile(&(tcp_lab_deliver_data as unsafe extern "C" fn(*const u8, usize)));

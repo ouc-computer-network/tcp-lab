@@ -1,17 +1,17 @@
-mod examples;
-mod tui;
-mod java_loader;
-mod runner;
 mod cpp;
+mod examples;
+mod java_loader;
 mod python;
+mod runner;
+mod tui;
 
+use crate::examples::{SimpleReceiver, SimpleSender};
+use crate::tui::{MemoryLogBuffer, TuiApp};
 use clap::Parser;
-use tracing::info;
 use std::fs;
-use tcp_lab_core::{Simulator, SimConfig, TransportProtocol, TestScenario, TestAction};
+use tcp_lab_core::{SimConfig, Simulator, TestAction, TestScenario, TransportProtocol};
 use tcp_lab_ffi::ensure_linked;
-use crate::examples::{SimpleSender, SimpleReceiver};
-use crate::tui::{TuiApp, MemoryLogBuffer};
+use tracing::info;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -21,13 +21,13 @@ struct Args {
 
     #[arg(long, default_value_t = false)]
     tui: bool,
-    
+
     #[arg(long)]
     java_sender: Option<String>,
 
     #[arg(long)]
     java_receiver: Option<String>,
-    
+
     #[arg(long, default_value = ".")]
     classpath: String,
 
@@ -72,10 +72,10 @@ async fn main() -> anyhow::Result<()> {
     if args.tui {
         let buffer = MemoryLogBuffer::new();
         let writer_buffer = buffer.clone();
-        
+
         tracing_subscriber::fmt()
             .with_writer(move || writer_buffer.clone())
-            .with_ansi(false) 
+            .with_ansi(false)
             .init();
     } else {
         tracing_subscriber::fmt::init();
@@ -96,7 +96,10 @@ async fn main() -> anyhow::Result<()> {
         if let Some((module, class)) = s.rsplit_once('.') {
             Ok((module.to_string(), class.to_string()))
         } else {
-            anyhow::bail!("Invalid python argument format '{}'. Expected 'module.Class'", s);
+            anyhow::bail!(
+                "Invalid python argument format '{}'. Expected 'module.Class'",
+                s
+            );
         }
     };
 
@@ -172,7 +175,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Setup Default Simulation (if not testing)
     let config = SimConfig {
-        loss_rate: 0.1, 
+        loss_rate: 0.1,
         min_latency: 100,
         max_latency: 500,
         seed: 42,

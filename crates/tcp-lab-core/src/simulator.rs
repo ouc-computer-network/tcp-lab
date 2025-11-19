@@ -1,9 +1,9 @@
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
-use rand::Rng;
-use tracing::{debug, info};
 use crate::interface::{SystemContext, TransportProtocol};
 use crate::packet::{Packet, flags};
+use rand::Rng;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
+use tracing::{debug, info};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeId {
@@ -22,17 +22,9 @@ impl NodeId {
 
 #[derive(Debug)]
 pub enum EventType {
-    PacketArrival {
-        to: NodeId,
-        packet: Packet,
-    },
-    TimerExpiry {
-        node: NodeId,
-        timer_id: u32,
-    },
-    AppSend {
-        data: Vec<u8>,
-    },
+    PacketArrival { to: NodeId, packet: Packet },
+    TimerExpiry { node: NodeId, timer_id: u32 },
+    AppSend { data: Vec<u8> },
 }
 
 #[derive(Debug)]
@@ -60,7 +52,9 @@ impl PartialOrd for Event {
 impl Ord for Event {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse comparison for time: smallest time is Greater in BinaryHeap
-        other.time.cmp(&self.time)
+        other
+            .time
+            .cmp(&self.time)
             .then_with(|| other.id.cmp(&self.id))
     }
 }
@@ -156,15 +150,15 @@ pub struct Simulator {
     time: u64,
     event_queue: BinaryHeap<Event>,
     event_id_counter: u64,
-    
+
     config: SimConfig,
     rng: rand::rngs::StdRng,
-    
+
     // We hold the two nodes directly
     // We use Box to allow different implementations
     pub sender: Box<dyn TransportProtocol>,
     pub receiver: Box<dyn TransportProtocol>,
-    
+
     // Stats for Grader
     pub delivered_data: Vec<Vec<u8>>,
     pub sender_packet_count: u32,
@@ -186,10 +180,14 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(config: SimConfig, sender: Box<dyn TransportProtocol>, receiver: Box<dyn TransportProtocol>) -> Self {
+    pub fn new(
+        config: SimConfig,
+        sender: Box<dyn TransportProtocol>,
+        receiver: Box<dyn TransportProtocol>,
+    ) -> Self {
         use rand::SeedableRng;
         let rng = rand::rngs::StdRng::seed_from_u64(config.seed);
-        
+
         Self {
             time: 0,
             event_queue: BinaryHeap::new(),
@@ -245,13 +243,19 @@ impl Simulator {
         // Init phase
         {
             let mut buffer = ActionBuffer::default();
-            let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
+            let mut ctx = ScopedContext {
+                buffer: &mut buffer,
+                now: self.time,
+            };
             self.sender.init(&mut ctx);
             self.process_actions(NodeId::Sender, buffer);
         }
         {
             let mut buffer = ActionBuffer::default();
-            let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
+            let mut ctx = ScopedContext {
+                buffer: &mut buffer,
+                now: self.time,
+            };
             self.receiver.init(&mut ctx);
             self.process_actions(NodeId::Receiver, buffer);
         }
@@ -260,11 +264,11 @@ impl Simulator {
     pub fn peek_next_event_time(&self) -> Option<u64> {
         self.event_queue.peek().map(|e| e.time)
     }
-    
+
     pub fn current_time(&self) -> u64 {
         self.time
     }
-    
+
     pub fn remaining_events(&self) -> usize {
         self.event_queue.len()
     }
@@ -283,7 +287,10 @@ impl Simulator {
             EventType::PacketArrival { to, packet } => {
                 let mut buffer = ActionBuffer::default();
                 {
-                    let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
+                    let mut ctx = ScopedContext {
+                        buffer: &mut buffer,
+                        now: self.time,
+                    };
                     match to {
                         NodeId::Sender => self.sender.on_packet(&mut ctx, packet),
                         NodeId::Receiver => self.receiver.on_packet(&mut ctx, packet),
@@ -294,7 +301,10 @@ impl Simulator {
             EventType::TimerExpiry { node, timer_id } => {
                 let mut buffer = ActionBuffer::default();
                 {
-                    let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
+                    let mut ctx = ScopedContext {
+                        buffer: &mut buffer,
+                        now: self.time,
+                    };
                     match node {
                         NodeId::Sender => self.sender.on_timer(&mut ctx, timer_id),
                         NodeId::Receiver => self.receiver.on_timer(&mut ctx, timer_id),
@@ -305,7 +315,10 @@ impl Simulator {
             EventType::AppSend { data } => {
                 let mut buffer = ActionBuffer::default();
                 {
-                    let mut ctx = ScopedContext { buffer: &mut buffer, now: self.time };
+                    let mut ctx = ScopedContext {
+                        buffer: &mut buffer,
+                        now: self.time,
+                    };
                     self.sender.on_app_data(&mut ctx, &data);
                 }
                 self.process_actions(NodeId::Sender, buffer);
@@ -346,12 +359,15 @@ impl Simulator {
         }
 
         for (delay, id) in buffer.timers_start {
-            self.push_event(self.time + delay, EventType::TimerExpiry {
-                node: source_node,
-                timer_id: id,
-            });
+            self.push_event(
+                self.time + delay,
+                EventType::TimerExpiry {
+                    node: source_node,
+                    timer_id: id,
+                },
+            );
         }
-        
+
         // Packet transmission logic (Channel)
         for mut packet in buffer.outgoing_packets {
             if source_node == NodeId::Sender {
@@ -375,7 +391,10 @@ impl Simulator {
                             packet.header.seq_num
                         ),
                     });
-                    debug!("Deterministically dropping sender packet with seq={}", packet.header.seq_num);
+                    debug!(
+                        "Deterministically dropping sender packet with seq={}",
+                        packet.header.seq_num
+                    );
                     self.drop_sender_seq_once.remove(pos);
                     continue;
                 }
@@ -396,7 +415,10 @@ impl Simulator {
                                 packet.header.ack_num
                             ),
                         });
-                        debug!("Deterministically dropping receiver ACK with ack={}", packet.header.ack_num);
+                        debug!(
+                            "Deterministically dropping receiver ACK with ack={}",
+                            packet.header.ack_num
+                        );
                         self.drop_receiver_ack_once.remove(pos);
                         continue;
                     }
@@ -437,7 +459,9 @@ impl Simulator {
             }
 
             // 3. Calculate Latency
-            let latency = self.rng.random_range(self.config.min_latency..=self.config.max_latency);
+            let latency = self
+                .rng
+                .random_range(self.config.min_latency..=self.config.max_latency);
             let arrival_time = self.time + latency;
 
             // 4. Target Node
@@ -447,18 +471,17 @@ impl Simulator {
                 time: self.time,
                 description: format!(
                     "[{:?}->{:?}] SEND seq={} ack={} (latency={}ms)",
-                    source_node,
-                    target_node,
-                    packet.header.seq_num,
-                    packet.header.ack_num,
-                    latency
+                    source_node, target_node, packet.header.seq_num, packet.header.ack_num, latency
                 ),
             });
 
-            self.push_event(arrival_time, EventType::PacketArrival {
-                to: target_node,
-                packet,
-            });
+            self.push_event(
+                arrival_time,
+                EventType::PacketArrival {
+                    to: target_node,
+                    packet,
+                },
+            );
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{TransportProtocol, SystemContext, Packet, TcpHeader, flags};
+use crate::{Packet, SystemContext, TcpHeader, TransportProtocol, flags};
 
 pub struct Rdt3Receiver {
     expected_seq: u32,
@@ -6,9 +6,7 @@ pub struct Rdt3Receiver {
 
 impl Rdt3Receiver {
     pub fn new() -> Self {
-        Self {
-            expected_seq: 0,
-        }
+        Self { expected_seq: 0 }
     }
 
     fn send_ack(&self, ctx: &mut dyn SystemContext, ack_num: u32) {
@@ -25,7 +23,7 @@ impl TransportProtocol for Rdt3Receiver {
         self.expected_seq = 0;
     }
 
-    fn send(&mut self, _ctx: &mut dyn SystemContext, _data: &[u8]) {
+    fn on_app_data(&mut self, _ctx: &mut dyn SystemContext, _data: &[u8]) {
         // Receiver doesn't send app data
     }
 
@@ -38,7 +36,10 @@ impl TransportProtocol for Rdt3Receiver {
             self.send_ack(ctx, self.expected_seq);
             self.expected_seq = 1 - self.expected_seq;
         } else {
-            ctx.log(&format!("Duplicate/Out-of-order packet {}, expected {}", h.seq_num, self.expected_seq));
+            ctx.log(&format!(
+                "Duplicate/Out-of-order packet {}, expected {}",
+                h.seq_num, self.expected_seq
+            ));
             // Re-send ACK for the LAST correctly received packet (1 - expected_seq)
             // Note: sequences are 0 and 1, so 1-0=1, 1-1=0.
             self.send_ack(ctx, 1 - self.expected_seq);

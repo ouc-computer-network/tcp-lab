@@ -3,6 +3,7 @@ mod tui;
 mod java_loader;
 mod runner;
 mod cpp;
+mod python;
 
 use clap::Parser;
 use tracing::info;
@@ -40,6 +41,18 @@ struct Args {
     /// Path to a C++ receiver shared library (same ABI as sender, but different logic).
     #[arg(long)]
     cpp_receiver_lib: Option<String>,
+
+    /// Python module and class for sender (e.g. "examples.rdt3_sender.Rdt3Sender")
+    #[arg(long)]
+    python_sender: Option<String>,
+
+    /// Python module and class for receiver (e.g. "examples.rdt3_receiver.Rdt3Receiver")
+    #[arg(long)]
+    python_receiver: Option<String>,
+
+    /// Additional path to add to Python sys.path
+    #[arg(long)]
+    python_path: Option<String>,
 }
 
 #[tokio::main]
@@ -70,6 +83,15 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
+    // Helper to parse "module.class"
+    let parse_py_arg = |s: &str| -> anyhow::Result<(String, String)> {
+        if let Some((module, class)) = s.rsplit_once('.') {
+            Ok((module.to_string(), class.to_string()))
+        } else {
+            anyhow::bail!("Invalid python argument format '{}'. Expected 'module.Class'", s);
+        }
+    };
+
     // Setup Protocols
     let sender: Box<dyn TransportProtocol> = if let Some(cls) = &args.java_sender {
         info!("Loading Java Sender: {}", cls);
@@ -77,6 +99,10 @@ async fn main() -> anyhow::Result<()> {
     } else if let Some(path) = &args.cpp_sender_lib {
         info!("Loading C++ Sender from {:?}", path);
         cpp::loader::load_cpp_sender(path)?
+    } else if let Some(py_arg) = &args.python_sender {
+        let (module, class) = parse_py_arg(py_arg)?;
+        info!("Loading Python Sender: {}.{}", module, class);
+        python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
     } else {
         Box::new(SimpleSender::default())
     };
@@ -87,6 +113,10 @@ async fn main() -> anyhow::Result<()> {
     } else if let Some(path) = &args.cpp_receiver_lib {
         info!("Loading C++ Receiver from {:?}", path);
         cpp::loader::load_cpp_sender(path)?
+    } else if let Some(py_arg) = &args.python_receiver {
+        let (module, class) = parse_py_arg(py_arg)?;
+        info!("Loading Python Receiver: {}.{}", module, class);
+        python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
     } else {
         Box::new(SimpleReceiver::default())
     };

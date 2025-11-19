@@ -53,6 +53,14 @@ struct Args {
     /// Additional path to add to Python sys.path
     #[arg(long)]
     python_path: Option<String>,
+
+    /// Use built-in Rust RDT3 Sender example
+    #[arg(long, default_value_t = false)]
+    rust_rdt3_sender: bool,
+
+    /// Use built-in Rust RDT3 Receiver example
+    #[arg(long, default_value_t = false)]
+    rust_rdt3_receiver: bool,
 }
 
 #[tokio::main]
@@ -103,6 +111,9 @@ async fn main() -> anyhow::Result<()> {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Sender: {}.{}", module, class);
         python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
+    } else if args.rust_rdt3_sender {
+        info!("Loading Rust RDT3 Sender");
+        Box::new(tcp_lab_rust::examples::rdt3_sender::Rdt3Sender::new())
     } else {
         Box::new(SimpleSender::default())
     };
@@ -117,6 +128,9 @@ async fn main() -> anyhow::Result<()> {
         let (module, class) = parse_py_arg(py_arg)?;
         info!("Loading Python Receiver: {}.{}", module, class);
         python::loader::load_python_sender(&module, &class, args.python_path.as_deref())?
+    } else if args.rust_rdt3_receiver {
+        info!("Loading Rust RDT3 Receiver");
+        Box::new(tcp_lab_rust::examples::rdt3_receiver::Rdt3Receiver::new())
     } else {
         Box::new(SimpleReceiver::default())
     };

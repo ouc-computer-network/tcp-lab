@@ -22,9 +22,18 @@ impl NodeId {
 
 #[derive(Debug)]
 pub enum EventType {
-    PacketArrival { to: NodeId, packet: Packet },
-    TimerExpiry { node: NodeId, timer_id: u32 },
-    AppSend { data: Vec<u8> },
+    PacketArrival {
+        to: NodeId,
+        packet: Packet,
+    },
+    TimerExpiry {
+        node: NodeId,
+        timer_id: u32,
+        generation: u64,
+    },
+    AppSend {
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug)]
@@ -177,6 +186,10 @@ pub struct Simulator {
 
     /// Timeline of link events (drops, corruptions, sends, deliveries) for TUI visualization.
     pub link_events: Vec<LinkEventSummary>,
+
+    /// Timer generations to handle cancellation.
+    /// Key: (node, timer_id), Value: generation counter
+    timer_generations: HashMap<(NodeId, u32), u64>,
 }
 
 impl Simulator {
@@ -203,6 +216,7 @@ impl Simulator {
             drop_sender_seq_once: Vec::new(),
             drop_receiver_ack_once: Vec::new(),
             link_events: Vec::new(),
+            timer_generations: HashMap::new(),
         }
     }
 
@@ -298,7 +312,26 @@ impl Simulator {
                 }
                 self.process_actions(to, buffer);
             }
-            EventType::TimerExpiry { node, timer_id } => {
+            EventType::TimerExpiry {
+                node,
+                timer_id,
+                generation,
+            } => {
+                // Check if this timer event is still valid by comparing generations
+                let key = (node, timer_id);
+                if let Some(&current_generation) = self.timer_generations.get(&key) {
+                    if current_generation != generation {
+                        // This timer has been cancelled, skip the callback
+                        debug!("Skipping cancelled timer event for timer_id={}", timer_id);
+                        return true; // Event processed (by being ignored)
+                    }
+                } else {
+                    // No record of this timer, it might be from a previous simulation run
+                    // or an orphaned event. Skip it for safety.
+                    debug!("Skipping orphaned timer event for timer_id={}", timer_id);
+                    return true; // Event processed (by being ignored)
+                }
+
                 let mut buffer = ActionBuffer::default();
                 {
                     let mut ctx = ScopedContext {
@@ -358,12 +391,23 @@ impl Simulator {
             self.delivered_data.push(data);
         }
 
+        // Handle timer cancellations by incrementing the generation counter
+        for timer_id in buffer.timers_cancel {
+            let key = (source_node, timer_id);
+            // Increment the generation to invalidate existing timer events
+            let generation = self.timer_generations.entry(key).or_insert(0);
+            *generation += 1;
+        }
+
         for (delay, id) in buffer.timers_start {
+            let key = (source_node, id);
+            let generation = *self.timer_generations.entry(key).or_insert(0);
             self.push_event(
                 self.time + delay,
                 EventType::TimerExpiry {
                     node: source_node,
                     timer_id: id,
+                    generation,
                 },
             );
         }
@@ -483,5 +527,89 @@ impl Simulator {
                 },
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::interface::{SystemContext, TransportProtocol};
+    use crate::packet::Packet;
+    use crate::simulator::{SimConfig, Simulator};
+
+    struct TestProtocol {
+        timer_fired: bool,
+        timer_cancelled: bool,
+    }
+
+    impl TestProtocol {
+        fn new() -> Self {
+            Self {
+                timer_fired: false,
+                timer_cancelled: false,
+            }
+        }
+    }
+
+    impl TransportProtocol for TestProtocol {
+        fn init(&mut self, _ctx: &mut dyn SystemContext) {
+            // Start a timer that will fire in 10ms
+            _ctx.start_timer(10, 0);
+            // Schedule a dummy event to cancel the timer after it has been started
+            _ctx.start_timer(5, 1); // This timer will trigger the cancellation
+        }
+
+        fn on_packet(&mut self, _ctx: &mut dyn SystemContext, _packet: Packet) {
+            // Not used in this test
+        }
+
+        fn on_timer(&mut self, _ctx: &mut dyn SystemContext, timer_id: u32) {
+            match timer_id {
+                0 => {
+                    // This should NOT be called if the timer was successfully cancelled
+                    self.timer_fired = true;
+                }
+                1 => {
+                    // Cancel the first timer
+                    _ctx.cancel_timer(0);
+                    self.timer_cancelled = true;
+                }
+                _ => {}
+            }
+        }
+
+        fn on_app_data(&mut self, _ctx: &mut dyn SystemContext, _data: &[u8]) {
+            // Not used in this test
+        }
+    }
+
+    #[test]
+    fn test_cancel_timer() {
+        let config = SimConfig::default();
+        let sender = Box::new(TestProtocol::new());
+        let receiver = Box::new(TestProtocol::new());
+
+        let mut simulator = Simulator::new(config, sender, receiver);
+
+        // Run the simulation
+        simulator.run_until_complete();
+
+        // Extract the protocols back to check their state
+        // We need to use unsafe code here because we can't move out of Box<dyn Trait>
+        // This is just for testing purposes
+        let sender_ptr = simulator.sender.as_ref() as *const dyn TransportProtocol;
+        let sender_state = unsafe {
+            let concrete = sender_ptr as *const TestProtocol;
+            &*concrete
+        };
+
+        // The timer should have been cancelled but not fired
+        assert!(
+            sender_state.timer_cancelled,
+            "Timer should have been cancelled"
+        );
+        assert!(
+            !sender_state.timer_fired,
+            "Cancelled timer should not have fired"
+        );
     }
 }

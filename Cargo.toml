@@ -4,6 +4,7 @@ members = [
     "crates/tcp-lab-cli",
     "crates/tcp-lab-jni",
     "crates/tcp-lab-ffi",
+    "sdk/rust",
 ]
 resolver = "2"
 

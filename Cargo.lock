@@ -1054,7 +1054,6 @@ dependencies = [
  "tcp-lab-core",
  "tcp-lab-ffi",
  "tcp-lab-jni",
- "tcp-lab-rust",
  "tokio",
  "toml",
  "tracing",
@@ -1098,7 +1097,10 @@ name = "tcp-lab-rust"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
+ "tcp-lab-cli",
  "tcp-lab-core",
+ "tokio",
  "tracing",
 ]
 

@@ -7,7 +7,7 @@ edition = "2024"
 tcp-lab-core = { path = "../tcp-lab-core" }
 tcp-lab-jni = { path = "../tcp-lab-jni" }
 tcp-lab-ffi = { path = "../tcp-lab-ffi" }
-tcp-lab-rust = { path = "../../sdk/rust" } 
+# tcp-lab-rust = { path = "../../sdk/rust" }
 tokio.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

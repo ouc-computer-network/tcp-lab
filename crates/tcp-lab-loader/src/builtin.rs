@@ -4,6 +4,22 @@ use tcp_lab_abstract::{Packet, SystemContext, TransportProtocol, flags};
 const DATA_TIMER: u32 = 1;
 const DATA_TIMEOUT_MS: u64 = 1000;
 
+fn checksum(data: &[u8]) -> u16 {
+    let mut sum: u32 = 0;
+    let mut chunks = data.chunks_exact(2);
+    for chunk in &mut chunks {
+        let word = u16::from_be_bytes([chunk[0], chunk[1]]) as u32;
+        sum = sum.wrapping_add(word);
+    }
+    if let Some(&byte) = chunks.remainder().first() {
+        sum = sum.wrapping_add((byte as u32) << 8);
+    }
+    while (sum >> 16) != 0 {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+    !(sum as u16)
+}
+
 #[derive(Default)]
 pub struct Rdt2Sender {
     next_seq: u32,
@@ -18,7 +34,8 @@ impl Rdt2Sender {
             return;
         }
         if let Some(payload) = self.pending.pop_front() {
-            let packet = Packet::new_simple(self.next_seq, 0, 0, payload);
+            let mut packet = Packet::new_simple(self.next_seq, 0, 0, payload);
+            packet.header.checksum = checksum(&packet.payload);
             ctx.log(&format!(
                 "RDT2 send seq={} ({} bytes)",
                 self.next_seq,
@@ -97,6 +114,15 @@ impl TransportProtocol for Rdt2Receiver {
     }
 
     fn on_packet(&mut self, ctx: &mut dyn SystemContext, packet: Packet) {
+        let expected_checksum = checksum(&packet.payload);
+        if expected_checksum != packet.header.checksum {
+            ctx.log(&format!(
+                "RDT2 checksum mismatch for seq {} (expected {:04X}, got {:04X})",
+                packet.header.seq_num, expected_checksum, packet.header.checksum
+            ));
+            self.send_ack(ctx, self.last_acked);
+            return;
+        }
         if packet.header.seq_num == self.expected_seq {
             ctx.log(&format!(
                 "RDT2 received seq {} ({} bytes)",

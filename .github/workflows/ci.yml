@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+      - name: Cargo clippy
+        run: cargo clippy --workspace --all-targets -- --deny warnings
+
+  integration:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install uv (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install uv (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -Command "irm https://astral.sh/uv/install.ps1 | iex"
+
+      - name: Cargo build
+        run: cargo build --workspace --all-targets
+
+      - name: Cargo test
+        run: cargo test --workspace
+
+      - name: Setup Python SDK virtualenv (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd sdk/python
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e .
+
+      - name: Setup Python SDK virtualenv (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd sdk/python
+          uv venv
+          .\.venv\Scripts\activate
+          uv pip install -e .
+
+      - name: Build Java SDK
+        run: |
+          cd sdk/java
+          mvn -q package
+
+      - name: Build C++ SDK
+        run: |
+          cmake -S sdk/cpp -B sdk/cpp/build
+          cmake --build sdk/cpp/build --config Release
+
+      - name: Run built-in RDT2 scenario
+        run: cargo run -p tcp-lab-sim-cli -- --scenario tests/test_echo.toml
+
+      - name: Run eval host
+        run: cargo run -p tcp-lab-eval-host -- --scenario tests/test_echo.toml
+
+      - name: Run Python SDK example
+        run: |
+          cargo run -p tcp-lab-sim-cli --features python -- \
+            --python-uv-project sdk/python \
+            --python-sender tcp_lab_sdk.rdt1.Rdt1Sender \
+            --python-receiver tcp_lab_sdk.rdt1.Rdt1Receiver \
+            --scenario tests/test_echo.toml
+
+      - name: Run Java SDK example
+        run: |
+          cargo run -p tcp-lab-sim-cli --features java -- \
+            --classpath sdk/java/target/tcp-lab-java-sdk-0.1.0.jar \
+            --java-sender com.ouc.tcp.sdk.rdt1.Rdt1Sender \
+            --java-receiver com.ouc.tcp.sdk.rdt1.Rdt1Receiver \
+            --scenario tests/test_echo.toml
+
+      - name: Run C++ SDK example (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          EXT="so"
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            EXT="dylib"
+          fi
+          cargo run -p tcp-lab-sim-cli --features cpp -- \
+            --cpp-sender-lib sdk/cpp/build/librdt1_sender.$EXT \
+            --cpp-receiver-lib sdk/cpp/build/librdt1_receiver.$EXT \
+            --scenario tests/test_echo.toml
+
+      - name: Run C++ SDK example (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo run -p tcp-lab-sim-cli --features cpp -- \
+            --cpp-sender-lib sdk/cpp/build/Release/rdt1_sender.dll \
+            --cpp-receiver-lib sdk/cpp/build/Release/rdt1_receiver.dll \
+            --scenario tests/test_echo.toml

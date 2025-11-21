@@ -3,7 +3,7 @@ description = "RDT 2.0 通过检查和 NAK 重传实现可靠传输"
 
 [config]
 loss_rate = 0.0
-corrupt_rate = 0.5
+corrupt_rate = 0.8
 min_latency = 5
 max_latency = 30
 seed = 31415

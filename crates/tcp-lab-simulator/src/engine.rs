@@ -150,6 +150,8 @@ pub struct Simulator {
 
     // Deterministic fault injection: drop first packet from Sender with given seq numbers
     drop_sender_seq_once: Vec<u32>,
+    // Deterministic corruption: corrupt first packet from Sender with given seq numbers
+    corrupt_sender_seq_once: Vec<u32>,
     // Deterministic fault injection: drop first ACK from Receiver with given ack numbers
     drop_receiver_ack_once: Vec<u32>,
 
@@ -183,6 +185,7 @@ impl Simulator {
             sender_window_sizes: Vec::new(),
             metrics: HashMap::new(),
             drop_sender_seq_once: Vec::new(),
+            corrupt_sender_seq_once: Vec::new(),
             drop_receiver_ack_once: Vec::new(),
             link_events: Vec::new(),
             timer_generations: HashMap::new(),
@@ -192,6 +195,11 @@ impl Simulator {
     /// Register a deterministic fault: drop the first packet sent by Sender whose seq equals `seq`.
     pub fn add_drop_sender_seq_once(&mut self, seq: u32) {
         self.drop_sender_seq_once.push(seq);
+    }
+
+    /// Register a deterministic corruption: flip bits for the first packet sent by Sender whose seq equals `seq`.
+    pub fn add_corrupt_sender_seq_once(&mut self, seq: u32) {
+        self.corrupt_sender_seq_once.push(seq);
     }
 
     /// Register a deterministic fault: drop the first ACK sent by Receiver whose ack equals `ack`.
@@ -424,6 +432,26 @@ impl Simulator {
                     self.drop_sender_seq_once.remove(pos);
                     continue;
                 }
+
+                if let Some(pos) = self
+                    .corrupt_sender_seq_once
+                    .iter()
+                    .position(|s| *s == packet.header.seq_num)
+                {
+                    self.link_events.push(LinkEventSummary {
+                        time: self.time,
+                        description: format!(
+                            "[Sender->Receiver] CORRUPT (deterministic seq) seq={}",
+                            packet.header.seq_num
+                        ),
+                    });
+                    debug!(
+                        "Deterministically corrupting sender packet with seq={}",
+                        packet.header.seq_num
+                    );
+                    self.corrupt_sender_seq_once.remove(pos);
+                    Self::corrupt_packet(&mut packet);
+                }
             }
 
             if source_node == NodeId::Receiver {
@@ -480,7 +508,7 @@ impl Simulator {
                 });
                 debug!("Packet corrupted in channel");
                 // Simple corruption: flip the checksum to make it invalid
-                packet.header.checksum = !packet.header.checksum;
+                Self::corrupt_packet(&mut packet);
             }
 
             // 3. Calculate Latency
@@ -507,6 +535,14 @@ impl Simulator {
                     packet,
                 },
             );
+        }
+    }
+
+    fn corrupt_packet(packet: &mut Packet) {
+        if !packet.payload.is_empty() {
+            packet.payload[0] ^= 0xFF;
+        } else {
+            packet.header.checksum ^= 0xFFFF;
         }
     }
 }

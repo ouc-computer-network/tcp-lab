@@ -276,6 +276,9 @@ fn configure_actions(sim: &mut Simulator, actions: &[TestAction]) {
             TestAction::DropNextFromSenderSeq { seq } => {
                 sim.add_drop_sender_seq_once(*seq);
             }
+            TestAction::CorruptNextFromSenderSeq { seq } => {
+                sim.add_corrupt_sender_seq_once(*seq);
+            }
             TestAction::DropNextFromReceiverAck { ack } => {
                 sim.add_drop_receiver_ack_once(*ack);
             }

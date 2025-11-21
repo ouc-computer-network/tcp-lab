@@ -46,6 +46,8 @@ pub enum TestAction {
     AppSend { time: u64, data: String },
     /// Deterministically drop the first packet sent by Sender with given seq number
     DropNextFromSenderSeq { seq: u32 },
+    /// Deterministically corrupt the first packet sent by Sender with given seq number
+    CorruptNextFromSenderSeq { seq: u32 },
     /// Deterministically drop the first ACK sent by Receiver with given ack number
     DropNextFromReceiverAck { ack: u32 },
 }

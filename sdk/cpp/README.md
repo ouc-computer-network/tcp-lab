@@ -15,7 +15,7 @@ cmake -B build
 cmake --build build
 ```
 
-You will get `build/librdt1_sender.dylib` (or `.so`/`.dll`) and likewise for receiver.
+You will get `build/librdt1_sender.dylib` (or `.so`/`.dll`) and likewise for receiver. On macOS the build already links with `-undefined dynamic_lookup` so the unresolved `tcp_lab_*` symbols are satisfied at runtime by the Rust host.
 
 Run them via the CLI:
 

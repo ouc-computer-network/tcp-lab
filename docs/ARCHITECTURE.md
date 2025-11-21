@@ -79,3 +79,14 @@ tcp-lab-loader --(TransportProtocol trait objects)--> tcp-lab-abstract
 ```
 
 Python developers should install [`uv`](https://github.com/astral-sh/uv) and point the loader at their project root (`--python-uv-project`). The loader automatically asks `uv run python` for the managed interpreter’s `sys.path`, ensuring embedded PyO3 imports match the virtual environment that `uv` controls.
+
+## SDKs
+
+Language-specific starter kits live in `sdk/`:
+
+- `sdk/rust` – helper crate plus an RDT1 sender/receiver example and checksum utility.
+- `sdk/python` – Python package containing the `tcp_lab.structs` module required by the loader, an RDT1 implementation, and checksum helper (installable via `uv pip install -e .`).
+- `sdk/java` – Maven project that exposes the JNI stubs (`NativeBridge`, `SystemContextImpl`, etc.), checksum utils, and an RDT1 pair.
+- `sdk/cpp` – CMake project with a header-only helper (`tcp_lab/sdk.hpp`), checksum helper, and ready-to-build RDT1 shared libraries.
+
+Each SDK documents how to compile/run the reference RDT1 code and gives students a checksum helper so they can extend the template to RDT2.

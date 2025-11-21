@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "tcp-lab-sdk"
 version = "0.1.0"
@@ -6,9 +10,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
-[build-system]
-requires = ["setuptools>=65"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+packages = ["tcp_lab", "tcp_lab_sdk"]
+[tool.setuptools.package-dir]
+"" = "."
 
 [tool.uv]
 package = true

@@ -14,11 +14,13 @@ The jar lands in `target/tcp-lab-java-sdk-0.1.0.jar`.
 ## Run the reference implementation
 
 ```
-cargo run -p tcp-lab-sim-cli -- \
+cargo run -p tcp-lab-sim-cli --features java -- \
   --classpath sdk/java/target/tcp-lab-java-sdk-0.1.0.jar \
   --java-sender com.ouc.tcp.sdk.rdt1.Rdt1Sender \
   --java-receiver com.ouc.tcp.sdk.rdt1.Rdt1Receiver \
   --scenario tests/scenarios/rdt2_basic.toml --tui
+
+> Tip: run the command from the repository root (or provide an absolute `--classpath`) so the JVM can find `com.ouc.tcp.sdk.NativeBridge`.
 ```
 
 When you move to RDT2, create your own package (still depending on this SDK), subclass `TransportProtocol`, and reuse `util.Checksum.internetChecksum`.

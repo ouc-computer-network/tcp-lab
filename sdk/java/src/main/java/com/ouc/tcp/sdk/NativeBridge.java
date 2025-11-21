@@ -11,7 +11,7 @@ final class NativeBridge {
 
     private NativeBridge() {}
 
-    static native void sendPacket(long seq, long ack, byte flags, int window, int checksum, byte[] payload);
+    static native void sendPacket(long seq, long ack, byte flags, int window, int checksum, int urgentPtr, byte[] payload);
 
     static native void startTimer(long delayMs, int timerId);
 

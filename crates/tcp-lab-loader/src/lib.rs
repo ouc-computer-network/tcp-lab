@@ -152,14 +152,22 @@ fn init_python(config: Option<PythonConfig>) -> Result<Option<PythonEnvironment>
     #[cfg(feature = "python")]
     {
         if let Some(config) = config {
-            if let Some(root) = config.uv_project_root {
-                let env = PythonEnvironment::from_uv(root, &config.extra_paths)?;
-                Ok(Some(env))
+            let env = if let Some(root) = config.uv_project_root {
+                PythonEnvironment::from_uv(root, &config.extra_paths)?
             } else if !config.extra_paths.is_empty() {
-                Ok(Some(PythonEnvironment::from_paths(config.extra_paths)))
+                PythonEnvironment::from_paths(config.extra_paths)
             } else {
-                Ok(None)
+                return Ok(None);
+            };
+
+            // Set PYTHONHOME environment variable if available
+            if let Some(python_home) = env.python_home() {
+                unsafe {
+                    std::env::set_var("PYTHONHOME", python_home);
+                }
             }
+
+            Ok(Some(env))
         } else {
             Ok(None)
         }

@@ -6,14 +6,19 @@ edition = "2024"
 [features]
 default = []
 java = ["dep:jni", "dep:tcp-lab-jni"]
-python = ["dep:pyo3", "dep:serde_json"]
+python = ["dep:pyo3", "dep:serde_json", "dep:serde"]
 cpp = ["dep:libloading", "dep:tcp-lab-ffi"]
 
 [dependencies]
 anyhow.workspace = true
 tcp-lab-abstract = { path = "../tcp-lab-abstract" }
+serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0.145", optional = true }
-pyo3 = { version = "0.27.1", features = ["auto-initialize", "macros"], optional = true }
+pyo3 = { version = "0.27.1", features = [
+    "abi3-py38",
+    "auto-initialize",
+    "macros",
+], optional = true }
 jni = { version = "0.21.1", features = ["invocation"], optional = true }
 libloading = { version = "0.9.0", optional = true }
 tcp-lab-jni = { path = "../tcp-lab-jni", optional = true }

@@ -10,16 +10,19 @@ This package ships the data structures that the Rust loader expects (`tcp_lab.st
 
 ```
 cd sdk/python
+uv venv
+. .venv/bin/activate
 uv pip install -e .
 ```
 
 Then point the simulator to this package:
 
 ```
-cargo run -p tcp-lab-sim-cli -- --tui \
+cargo run -p tcp-lab-sim-cli --features python -- --tui \
     --python-sender tcp_lab_sdk.rdt1.Rdt1Sender \
     --python-receiver tcp_lab_sdk.rdt1.Rdt1Receiver \
-    --python-path sdk/python
+    --python-path sdk/python \
+    --python-uv-project .
 ```
 
 When you move to RDT2, create your own module (e.g. `myteam.sender`) that inherits from `BaseTransportProtocol`, import `checksum.internet_checksum`, and pass the fully qualified name via `--python-sender`.

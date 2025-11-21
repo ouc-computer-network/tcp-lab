@@ -6,6 +6,7 @@ public final class TcpHeader {
     private int flags;
     private int windowSize;
     private int checksum;
+    private int urgentPointer;
 
     public long getSeqNum() {
         return seqNum;
@@ -31,6 +32,11 @@ public final class TcpHeader {
         this.flags = flags;
     }
 
+    // JNI bridge uses the byte signature.
+    public void setFlags(byte flags) {
+        this.flags = flags & 0xFF;
+    }
+
     public int getWindowSize() {
         return windowSize;
     }
@@ -45,5 +51,13 @@ public final class TcpHeader {
 
     public void setChecksum(int checksum) {
         this.checksum = checksum;
+    }
+
+    public int getUrgentPointer() {
+        return urgentPointer;
+    }
+
+    public void setUrgentPointer(int urgentPointer) {
+        this.urgentPointer = urgentPointer;
     }
 }

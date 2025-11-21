@@ -142,6 +142,7 @@ impl TransportProtocol for CppTransportProtocol {
 
 /// Load a C++ protocol library from the given path and wrap it as a Rust TransportProtocol.
 pub fn load_protocol<P: AsRef<Path>>(path: P) -> anyhow::Result<Box<dyn TransportProtocol>> {
+    tcp_lab_ffi::ensure_linked();
     let lib = unsafe { Library::new(path.as_ref()) }
         .with_context(|| format!("failed to load C++ protocol library {:?}", path.as_ref()))?;
     let cpp = CppTransportProtocol::new(lib)?;

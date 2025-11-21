@@ -20,10 +20,10 @@ You will get `build/librdt1_sender.dylib` (or `.so`/`.dll`) and likewise for rec
 Run them via the CLI:
 
 ```
-cargo run -p tcp-lab-sim-cli -- \
-  --cpp-sender sdk/cpp/build/librdt1_sender.dylib \
-  --cpp-receiver sdk/cpp/build/librdt1_receiver.dylib \
-  --scenario tests/scenarios/rdt2_basic.toml --tui
+cargo run -p tcp-lab-sim-cli --features cpp -- \
+    --cpp-sender-lib sdk/cpp/build/librdt1_sender.dylib \
+    --cpp-receiver-lib sdk/cpp/build/librdt1_receiver.dylib \
+    --scenario tests/test_rdt20.toml --tui
 ```
 
 Port the template to RDT2 by editing the classes in `src/rdt1_*.cpp` and reusing the checksum helper.

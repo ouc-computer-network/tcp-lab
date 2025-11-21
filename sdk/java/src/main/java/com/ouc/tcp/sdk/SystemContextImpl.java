@@ -10,6 +10,7 @@ public final class SystemContextImpl implements SystemContext {
                 (byte) header.getFlags(),
                 header.getWindowSize(),
                 header.getChecksum(),
+                header.getUrgentPointer(),
                 packet.getPayload());
     }
 

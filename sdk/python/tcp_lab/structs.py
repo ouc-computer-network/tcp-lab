@@ -11,6 +11,7 @@ class TcpHeader:
     flags: int = 0
     window_size: int = 0
     checksum: int = 0
+    urgent_ptr: int = 0
 
     def setSeqNum(self, value: int) -> None:  # JNI expects camelCase setters
         self.seq_num = value
@@ -26,6 +27,9 @@ class TcpHeader:
 
     def setChecksum(self, value: int) -> None:
         self.checksum = value
+
+    def setUrgentPtr(self, value: int) -> None:
+        self.urgent_ptr = value
 
 
 @dataclass

@@ -3,7 +3,7 @@ use jni::objects::{JByteArray, JClass, JObject, JString, JValue};
 use jni::sys::{jbyte, jbyteArray, jdouble, jint, jlong};
 use std::cell::RefCell;
 use std::sync::Arc;
-use tcp_lab_core::{Packet, SystemContext, TcpHeader, TransportProtocol};
+use tcp_lab_abstract::{Packet, SystemContext, TcpHeader, TransportProtocol};
 use tracing::error;
 
 // ==========================================
@@ -12,7 +12,7 @@ use tracing::error;
 
 // Use usize to store the raw pointer to avoid lifetime issues with thread_local!
 thread_local! {
-    static CURRENT_CONTEXT_PTR: RefCell<usize> = RefCell::new(0);
+    static CURRENT_CONTEXT_PTR: RefCell<usize> = const { RefCell::new(0) };
 }
 
 fn with_context<F, R>(ctx: &mut dyn SystemContext, f: F) -> R
@@ -165,7 +165,7 @@ pub extern "system" fn Java_com_ouc_tcp_sdk_NativeBridge_recordMetric(
     };
 
     use_context(|ctx| {
-        ctx.record_metric(&name_str, value as f64);
+        ctx.record_metric(&name_str, value);
     });
 }
 
@@ -276,7 +276,7 @@ impl JavaTransportProtocol {
             let obj = self.instance.as_ref().unwrap().as_obj();
             let ctx_obj = self.context_impl.as_ref().unwrap().as_obj();
 
-            if let Err(e) = op(&mut env, &obj, &ctx_obj) {
+            if let Err(e) = op(&mut env, obj, ctx_obj) {
                 error!("Java exception or JNI error: {:?}", e);
                 if env.exception_check().unwrap_or(false) {
                     env.exception_describe().unwrap_or(());

@@ -1,0 +1,21 @@
+[package]
+name = "tcp-lab-sim-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+toml = "0.9.8"
+tcp-lab-abstract = { path = "../tcp-lab-abstract" }
+tcp-lab-loader = { path = "../tcp-lab-loader" }
+tcp-lab-simulator = { path = "../tcp-lab-simulator", features = ["tui"] }
+serde_json.workspace = true
+
+[features]
+default = []
+java = ["tcp-lab-loader/java"]
+python = ["tcp-lab-loader/python"]
+cpp = ["tcp-lab-loader/cpp"]

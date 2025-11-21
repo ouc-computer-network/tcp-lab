@@ -1,0 +1,18 @@
+[package]
+name = "tcp-lab-eval-host"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tcp-lab-loader = { path = "../tcp-lab-loader" }
+tcp-lab-simulator = { path = "../tcp-lab-simulator" }
+
+[features]
+default = []
+java = ["tcp-lab-loader/java"]
+python = ["tcp-lab-loader/python"]
+cpp = ["tcp-lab-loader/cpp"]

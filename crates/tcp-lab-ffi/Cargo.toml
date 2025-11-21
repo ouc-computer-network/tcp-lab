@@ -8,7 +8,6 @@ name = "tcp_lab_ffi"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-tcp-lab-core = { path = "../tcp-lab-core" }
+tcp-lab-abstract = { path = "../tcp-lab-abstract" }
 tracing = { workspace = true }
-
 

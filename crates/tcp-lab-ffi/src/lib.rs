@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ptr;
 use std::slice;
 
-use tcp_lab_core::{Packet, SystemContext, TcpHeader};
+use tcp_lab_abstract::{Packet, SystemContext, TcpHeader};
 use tracing::error;
 
 // ==========================================

@@ -8,9 +8,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 jni = "0.21.1"
-tcp-lab-core = { path = "../tcp-lab-core" }
+tcp-lab-abstract = { path = "../tcp-lab-abstract" }
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 lazy_static = "1.5.0"
-

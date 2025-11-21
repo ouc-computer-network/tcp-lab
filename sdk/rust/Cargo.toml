@@ -1,0 +1,10 @@
+[package]
+name = "tcp-lab-rust-sdk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tcp-lab-abstract = { path = "../../crates/tcp-lab-abstract" }
+
+[dev-dependencies]
+tcp-lab-simulator = { path = "../../crates/tcp-lab-simulator" }

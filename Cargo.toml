@@ -1,7 +1,10 @@
 [workspace]
 members = [
-    "crates/tcp-lab-core",
-    "crates/tcp-lab-cli",
+    "crates/tcp-lab-abstract",
+    "crates/tcp-lab-loader",
+    "crates/tcp-lab-simulator",
+    "crates/tcp-lab-sim-cli",
+    "crates/tcp-lab-eval-host",
     "crates/tcp-lab-jni",
     "crates/tcp-lab-ffi",
     "sdk/rust",
@@ -16,5 +19,5 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
-clap = { version = "4.5.52", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 bytes = "1.11.0"

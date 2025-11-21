@@ -8,7 +8,7 @@ use crate::engine::Simulator;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::widgets::canvas::{Canvas, Line as CanvasLine, Points};
 use ratatui::{
@@ -97,26 +97,27 @@ impl TuiApp {
                 .unwrap_or_else(|| Duration::from_secs(0));
 
             if crossterm::event::poll(timeout)?
-                && let Event::Key(key) = event::read()? {
-                    match key.code {
-                        KeyCode::Char('q') => break,
-                        KeyCode::Char(' ') => self.paused = !self.paused,
-                        KeyCode::Char('s') => {
-                            // Step once
-                            self.simulator.step();
-                        }
-                        // Vertical scroll in link events list
-                        KeyCode::Up => {
-                            self.link_scroll = self.link_scroll.saturating_add(1);
-                        }
-                        KeyCode::Down => {
-                            if self.link_scroll > 0 {
-                                self.link_scroll -= 1;
-                            }
-                        }
-                        _ => {}
+                && let Event::Key(key) = event::read()?
+            {
+                match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char(' ') => self.paused = !self.paused,
+                    KeyCode::Char('s') => {
+                        // Step once
+                        self.simulator.step();
                     }
+                    // Vertical scroll in link events list
+                    KeyCode::Up => {
+                        self.link_scroll = self.link_scroll.saturating_add(1);
+                    }
+                    KeyCode::Down => {
+                        if self.link_scroll > 0 {
+                            self.link_scroll -= 1;
+                        }
+                    }
+                    _ => {}
                 }
+            }
 
             if last_tick.elapsed() >= tick_rate {
                 if !self.paused {
@@ -283,24 +284,25 @@ impl TuiApp {
 
         // ssthresh 系列（只有 Reno/Tahoe 会报）
         if let Some(series) = self.simulator.metric_series("ssthresh")
-            && !series.is_empty() {
-                let pts: Vec<(f64, f64)> = series
-                    .iter()
-                    .enumerate()
-                    .map(|(i, (_, v))| (i as f64, *v))
-                    .collect();
-                if !pts.is_empty() {
-                    for (_, y) in &pts {
-                        if *y < y_min {
-                            y_min = *y;
-                        }
-                        if *y > y_max {
-                            y_max = *y;
-                        }
+            && !series.is_empty()
+        {
+            let pts: Vec<(f64, f64)> = series
+                .iter()
+                .enumerate()
+                .map(|(i, (_, v))| (i as f64, *v))
+                .collect();
+            if !pts.is_empty() {
+                for (_, y) in &pts {
+                    if *y < y_min {
+                        y_min = *y;
                     }
-                    ssthresh_series_vec = Some(pts);
+                    if *y > y_max {
+                        y_max = *y;
+                    }
                 }
+                ssthresh_series_vec = Some(pts);
             }
+        }
 
         let mut datasets: Vec<Dataset> = Vec::new();
 
@@ -420,9 +422,10 @@ impl TuiApp {
                 if let Some(idx) = desc.find("latency=") {
                     let s = &desc[idx + "latency=".len()..];
                     if let Some(end_idx) = s.find("ms")
-                        && let Ok(v) = s[..end_idx].trim().parse::<f64>() {
-                            latency = v;
-                        }
+                        && let Ok(v) = s[..end_idx].trim().parse::<f64>()
+                    {
+                        latency = v;
+                    }
                 }
                 let t1 = if latency > 0.0 {
                     t0 + latency

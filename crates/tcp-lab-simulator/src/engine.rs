@@ -3,7 +3,7 @@ use rand::Rng;
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use tcp_lab_abstract::{flags, Packet, SimConfig};
+use tcp_lab_abstract::{Packet, SimConfig, flags};
 use tcp_lab_abstract::{SystemContext, TransportProtocol};
 use tracing::{debug, info};
 
@@ -87,7 +87,6 @@ struct ActionBuffer {
     delivered_data: Vec<Vec<u8>>,
     metrics: Vec<(String, f64)>,
 }
-
 
 /// Context implementation passed to the student
 struct ScopedContext<'a> {
@@ -434,21 +433,21 @@ impl Simulator {
                         .drop_receiver_ack_once
                         .iter()
                         .position(|a| *a == packet.header.ack_num)
-                    {
-                        self.link_events.push(LinkEventSummary {
-                            time: self.time,
-                            description: format!(
-                                "[Receiver->Sender] DROP (deterministic ack) ack={}",
-                                packet.header.ack_num
-                            ),
-                        });
-                        debug!(
-                            "Deterministically dropping receiver ACK with ack={}",
+                {
+                    self.link_events.push(LinkEventSummary {
+                        time: self.time,
+                        description: format!(
+                            "[Receiver->Sender] DROP (deterministic ack) ack={}",
                             packet.header.ack_num
-                        );
-                        self.drop_receiver_ack_once.remove(pos);
-                        continue;
-                    }
+                        ),
+                    });
+                    debug!(
+                        "Deterministically dropping receiver ACK with ack={}",
+                        packet.header.ack_num
+                    );
+                    self.drop_receiver_ack_once.remove(pos);
+                    continue;
+                }
             }
 
             // 1. Check Loss

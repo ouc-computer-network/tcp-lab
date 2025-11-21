@@ -8,7 +8,7 @@ use tcp_lab_abstract::{SimConfig, TestAction, TestScenario, TransportProtocol};
 use tcp_lab_loader::spec::{builtin_by_name, parse_python_spec};
 use tcp_lab_loader::{LoaderRequest, ProtocolDescriptor, ProtocolLoader, PythonConfig};
 use tcp_lab_simulator::tui::{MemoryLogBuffer, TuiApp};
-use tcp_lab_simulator::{encda, scenario_runner, SimulationReport, Simulator};
+use tcp_lab_simulator::{SimulationReport, Simulator, encda, scenario_runner};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Interactive TCP Lab simulator")]

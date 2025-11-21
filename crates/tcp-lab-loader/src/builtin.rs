@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use tcp_lab_abstract::{flags, Packet, SystemContext, TransportProtocol};
+use tcp_lab_abstract::{Packet, SystemContext, TransportProtocol, flags};
 
 const DATA_TIMER: u32 = 1;
 const DATA_TIMEOUT_MS: u64 = 1000;

@@ -3,7 +3,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use tcp_lab_loader::spec::{builtin_by_name, parse_python_spec};
 use tcp_lab_loader::{LoaderRequest, ProtocolDescriptor, ProtocolLoader, PythonConfig};
-use tcp_lab_simulator::{scenario_runner, SimulationReport};
+use tcp_lab_simulator::{SimulationReport, scenario_runner};
 use tracing::info;
 
 #[derive(Parser, Debug)]

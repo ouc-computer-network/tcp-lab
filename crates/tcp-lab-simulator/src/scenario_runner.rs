@@ -1,6 +1,6 @@
 use crate::engine::Simulator;
 use crate::trace::SimulationReport;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use std::fs;
 use tcp_lab_abstract::{SimConfig, TestAction, TestAssertion, TestScenario, TransportProtocol};
 use tracing::info;
@@ -80,13 +80,14 @@ pub fn run_scenario(
                     ));
                 }
                 if let Some(max) = max
-                    && sim.sender_packet_count > *max {
-                        return Err(anyhow!(
-                            "Assertion Failed: Sender sent {} packets, expected max {}",
-                            sim.sender_packet_count,
-                            max
-                        ));
-                    }
+                    && sim.sender_packet_count > *max
+                {
+                    return Err(anyhow!(
+                        "Assertion Failed: Sender sent {} packets, expected max {}",
+                        sim.sender_packet_count,
+                        max
+                    ));
+                }
             }
             TestAssertion::SenderWindowMax { min, max } => {
                 let max_win = sim.sender_window_sizes.iter().copied().max().unwrap_or(0);
@@ -98,13 +99,14 @@ pub fn run_scenario(
                     ));
                 }
                 if let Some(m) = max
-                    && max_win > *m {
-                        return Err(anyhow!(
-                            "Assertion Failed: Sender window max {} > expected max {}",
-                            max_win,
-                            m
-                        ));
-                    }
+                    && max_win > *m
+                {
+                    return Err(anyhow!(
+                        "Assertion Failed: Sender window max {} > expected max {}",
+                        max_win,
+                        m
+                    ));
+                }
             }
             TestAssertion::SenderWindowDrop {
                 from_at_least,

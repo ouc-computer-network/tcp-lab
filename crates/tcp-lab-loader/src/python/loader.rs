@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use tcp_lab_abstract::{Packet, SystemContext, TransportProtocol};
 
 use super::adapter;
-use super::context::{with_context, PySystemContext};
+use super::context::{PySystemContext, with_context};
 use super::environment::PythonEnvironment;
 
 pub struct PythonTransportProtocol {

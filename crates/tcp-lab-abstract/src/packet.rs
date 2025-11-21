@@ -10,8 +10,7 @@ pub mod flags {
     pub const URG: u8 = 0x20;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct TcpHeader {
     /// Source Port (Optional in our simple 1-to-1 sim, but kept for realism)
     pub src_port: u16,
@@ -31,7 +30,6 @@ pub struct TcpHeader {
     /// Urgent Pointer
     pub urgent_ptr: u16,
 }
-
 
 impl TcpHeader {
     pub fn new(seq: u32, ack: u32, flags: u8, wnd: u16) -> Self {
